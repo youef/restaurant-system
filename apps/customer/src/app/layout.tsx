@@ -4,8 +4,8 @@ import {ServiceWorkerRegister} from "./service-worker-register";
 import "./globals.css";
 
 export const metadata:Metadata={
-  title:"طلبك على راحتك | منصة الطلب",
-  description:"اطلب من طاولتك وتابع حالة طلبك مباشرة.",
+  title:"قائمة الطعام | مطعمك",
+  description:"استعرض قائمة الطعام، أضف طلبك، وتابع تحضيره مباشرة من طاولتك.",
   manifest:"/manifest.webmanifest",
   icons:{icon:"/icon.svg",apple:"/icon.svg"},
 };
