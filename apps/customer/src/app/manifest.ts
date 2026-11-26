@@ -10,6 +10,6 @@ export default function manifest():MetadataRoute.Manifest {
     theme_color:"#FF6B4A",
     lang:"ar",
     dir:"rtl",
-    icons:[{src:"/icon.svg",sizes:"any",type:"image/svg+xml",purpose:"any maskable"}],
+    icons:[{src:"/icon.svg",sizes:"any",type:"image/svg+xml",purpose:"maskable"}],
   };
 }
