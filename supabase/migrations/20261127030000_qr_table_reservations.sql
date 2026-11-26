@@ -1,6 +1,9 @@
 -- QR re-scan, atomic table reservation, expiring unused reservations, and customer-owned sessions.
 create extension if not exists pg_cron;
 
+update public.settings set customer_app_url = 'https://restaurant-customer-nlut.onrender.com'
+ where id = 1 and nullif(trim(customer_app_url), '') is null;
+
 alter table public.table_sessions
   add column if not exists owner_user_id uuid references auth.users(id) on delete set null,
   add column if not exists customer_id uuid references public.customer_profiles(id) on delete set null,
