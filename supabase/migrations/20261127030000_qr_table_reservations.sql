@@ -27,7 +27,7 @@ begin
     returning ts.table_id
   )
   update public.restaurant_tables t set status = 'available'
-   where t.id in (select table_id from expired);
+   where t.id in (select table_id from expired) and t.status <> 'out_of_service';
   get diagnostics v_count = row_count;
   return v_count;
 end;
@@ -64,7 +64,8 @@ begin
        and v_session.reservation_expires_at <= now()
        and not exists (select 1 from public.orders o where o.session_id = v_session.id) then
       update public.table_sessions set status = 'closed', closed_at = now(), reservation_expires_at = null where id = v_session.id;
-      update public.restaurant_tables set status = 'available' where id = v_session.table_id;
+      update public.restaurant_tables set status = 'available' where id = v_session.table_id and status <> 'out_of_service';
+      if v_session.table_id = v_table.id then v_table.status := 'available'; end if;
     elsif v_session.table_id = v_table.id then
       insert into public.session_members(session_id, user_id) values (v_session.id, auth.uid()) on conflict do nothing;
       update public.table_sessions set owner_user_id = auth.uid() where id = v_session.id and owner_user_id is null;
@@ -81,7 +82,7 @@ begin
        and v_session.reservation_expires_at <= now()
        and not exists (select 1 from public.orders o where o.session_id = v_session.id) then
       update public.table_sessions set status = 'closed', closed_at = now(), reservation_expires_at = null where id = v_session.id;
-      update public.restaurant_tables set status = 'available' where id = v_table.id;
+      update public.restaurant_tables set status = 'available' where id = v_table.id and status <> 'out_of_service';
       v_table.status := 'available';
     elsif exists (select 1 from public.session_members sm where sm.session_id = v_session.id and sm.user_id = auth.uid())
        or exists (select 1 from public.orders o where o.session_id = v_session.id and o.customer_id = v_customer_id) then
