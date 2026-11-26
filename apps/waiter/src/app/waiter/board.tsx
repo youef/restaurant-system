@@ -6,7 +6,7 @@ import { useRealtimeRefresh } from "@restaurant/realtime";
 import { formatMoney, formatDateTime } from "@restaurant/i18n";
 
 type Table = { id: string; number: number; seats: number; status: string };
-type Session = { id: string; table_id: string; opened_at: string };
+type Session = { id: string; table_id: string; opened_at: string; customer_exit_requested_at: string | null };
 type Order = { id: string; order_no: number; table_id: string; session_id: string; status: string; subtotal: number; vat_amount: number; total: number; placed_at: string; payment_method: "cash" | "card" };
 type Bill = { id: string; session_id: string; status: string; requested_at: string };
 type Item = { id: string; order_id: string; name_ar: string; quantity: number; unit_price: number; line_total: number; notes: string | null };
@@ -35,7 +35,7 @@ export function WaiterBoard() {
       const db = getSupabaseBrowserClient();
       const [tableResult, sessionResult, orderResult, billResult] = await Promise.all([
         db.from("restaurant_tables").select("id,number,seats,status").order("number"),
-        db.from("table_sessions").select("id,table_id,opened_at").eq("status", "open"),
+        db.from("table_sessions").select("id,table_id,opened_at,customer_exit_requested_at").eq("status", "open"),
         db.from("orders").select("id,order_no,table_id,session_id,status,subtotal,vat_amount,total,placed_at,payment_method").neq("status", "paid"),
         db.from("bill_requests").select("id,session_id,status,requested_at")
           .in("status", ["requested", "acknowledged"]).order("requested_at"),
@@ -58,6 +58,7 @@ export function WaiterBoard() {
   const tableNumbers = useMemo(() => new Map(tables.map((table) => [table.id, table.number])), [tables]);
   const sessionTable = useMemo(() => new Map(sessions.map((session) => [session.id, tableNumbers.get(session.table_id) ?? 0])), [sessions, tableNumbers]);
   const billSessions = new Set(bills.map((bill) => bill.session_id));
+  const exitRequestedSessions = new Set(sessions.filter((session) => !!session.customer_exit_requested_at).map((session) => session.id));
   const selectedOrders = selectedBill ? orders.filter((order) => order.session_id === selectedBill.session_id) : [];
   const billableOrders = selectedOrders.filter((order) => order.status !== "rejected");
   const billSubtotal = billableOrders.reduce((sum, order) => sum + Number(order.subtotal), 0);
@@ -121,7 +122,7 @@ export function WaiterBoard() {
             <div className="section-title"><h2>طلبات الحساب</h2><span>{bills.length}</span></div>
             {bills.map((bill) => (
               <article className="waiter-task-card bill-task" key={bill.id}>
-                <div><strong>طاولة {sessionTable.get(bill.session_id) ?? "—"}</strong><p>{bill.status === "requested" ? "طلب جديد" : "تم الاطلاع على الحساب"}</p><small>{formatDateTime(bill.requested_at)}</small></div>
+                <div><strong>طاولة {sessionTable.get(bill.session_id) ?? "—"}</strong><p>{exitRequestedSessions.has(bill.session_id) ? "طلب حساب ومغادرة الطاولة" : bill.status === "requested" ? "طلب جديد" : "تم الاطلاع على الحساب"}</p><small>{formatDateTime(bill.requested_at)}</small></div>
                 <div className="record-actions">
                   {bill.status === "requested" && <button className="action-button secondary" disabled={busy} onClick={() => void acknowledge(bill)}>استلام</button>}
                   <button className="action-button" onClick={() => { setSelectedBill(bill); { const methods = orders.filter((order) => order.session_id === bill.session_id).map((order) => order.payment_method); setMethod(methods.length && methods.every((value) => value === methods[0]) ? methods[0] : "cash"); } setReceived(""); }}>استلام الدفع</button>
@@ -156,6 +157,7 @@ export function WaiterBoard() {
                 <strong>طاولة {table.number}</strong><span>{table.seats} مقاعد</span>
                 <b>{table.status === "available" ? "متاحة" : table.status === "occupied" ? "مشغولة" : "خارج الخدمة"}</b>
                 {hasBill && <span className="bill-chip">طلب حساب</span>}
+                {session && exitRequestedSessions.has(session.id) && <span className="bill-chip">مغادرة الطاولة مطلوبة</span>}
                 {session && <><small>بدأت {formatDateTime(session.opened_at)}</small><small>جاهز للتقديم: {readyCount} · طلبات قيد التنفيذ: {openCount}</small></>}
               </article>
             );
