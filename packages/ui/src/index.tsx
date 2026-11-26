@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, ButtonHTMLAttributes } from "react";
 
 export interface Metric {
   label: string;
@@ -51,6 +51,6 @@ export function EmptyState({ title, description }: { title: string; description:
   );
 }
 
-export function ActionButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+export function ActionButton(props: ButtonHTMLAttributes<HTMLButtonElement>) {
   return <button {...props} className={["action-button", props.className].filter(Boolean).join(" ")} />;
 }

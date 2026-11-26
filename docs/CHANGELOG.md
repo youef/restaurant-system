@@ -14,3 +14,12 @@
 - Finish staff invite provisioning, all Admin modules, full POS/KDS/Waiter workflows, and menu CRUD.
 - Enable Anonymous Sign-ins in Supabase Auth and verify CAPTCHA/rate limits.
 - Configure Vercel projects, domains, secrets, monitoring and Lighthouse.
+
+
+## 2026-11-26 — RPC security hardening
+
+- Aligned repository migration versions with the two migrations recorded in the hosted database.
+- Moved privileged RPC implementations into the non-exposed `private` schema and added public `SECURITY INVOKER` wrappers.
+- Explicitly revoked direct RPC execution from `anon`; anonymous customers use the authenticated JWT created by Anonymous Sign-in.
+- Removed Supabase security advisor findings and added remaining foreign-key indexes.
+- Consolidated order read policies and wrapped `auth.uid()` in scalar subqueries for RLS efficiency.

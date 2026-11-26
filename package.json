@@ -13,6 +13,9 @@
   "devDependencies": {
     "prettier": "3.6.2",
     "turbo": "2.5.8",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "@types/node": "^22.19.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0"
   }
 }

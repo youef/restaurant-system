@@ -36,6 +36,9 @@ supabase db lint
 
 ملف الاختبار الأولي: `supabase/tests/platform_schema.test.sql`.
 
+- migrations المطابقة لقاعدة البيانات: `20261126085311_initial_platform.sql` و`20261126085531_rpc_security_hardening.sql`.
+- طبقة RPC العامة تستخدم `SECURITY INVOKER`، بينما تبقى عمليات الامتيازات في schema خاص غير مكشوف.
+
 ## 5. CI والنشر
 
 يستخدم CLI v3 الخيارين `--remote --yes` للنشر المستضاف من CI. عيّن `SUPABASE_ACCESS_TOKEN` و`SUPABASE_DB_PASSWORD` كـ GitHub Secrets. عيّن `NEXT_PUBLIC_SUPABASE_URL` و`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` لكل تطبيق في Vercel.

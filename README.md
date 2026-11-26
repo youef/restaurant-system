@@ -40,7 +40,9 @@ Monorepo عربي RTL لمنصة طلب من الطاولة لمطعم واحد�
 
 ## قاعدة البيانات
 
-- Migration: `supabase/migrations/20261126110000_initial_platform.sql`
+- Migration أمان RPC: `supabase/migrations/20261126085531_rpc_security_hardening.sql`
+
+- Migration: `supabase/migrations/20261126085311_initial_platform.sql`
 - Seed تجريبي محلي: `supabase/seed.sql`
 - pgTAP: `supabase/tests/platform_schema.test.sql`
 - التوثيق: `docs/architecture.md`, `docs/rls-matrix.md`, `docs/state-machines.md`
