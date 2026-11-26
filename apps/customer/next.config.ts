@@ -1,0 +1,1 @@
+import type {NextConfig} from "next";const config:NextConfig={transpilePackages:["@restaurant/db","@restaurant/ui","@restaurant/i18n","@restaurant/realtime"]};export default config;

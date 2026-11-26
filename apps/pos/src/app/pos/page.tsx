@@ -1,0 +1,1 @@
+import {StaffGuard} from "@restaurant/db";import {PosQueue} from "./queue";export default async function Page(){return <StaffGuard allowedRoles={["cashier","admin"]}><main className="staff-page" dir="rtl"><header><small>POS / FRONT DESK</small><h1>الطلبات الواردة</h1><p>اعتمد الطلبات أو ارفضها مع تسجيل السبب.</p></header><PosQueue/></main></StaffGuard>}

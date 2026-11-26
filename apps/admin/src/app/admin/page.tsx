@@ -1,0 +1,1 @@
+import {StaffGuard} from "@restaurant/db";import {TableManager} from "./tables";export default async function Page(){return <StaffGuard allowedRoles={["admin"]}><main className="staff-page" dir="rtl"><header><small>ADMIN CONSOLE</small><h1>إدارة الطاولات</h1><p>تابع حالة الطاولات وأضف طاولات جديدة.</p></header><TableManager/></main></StaffGuard>}

@@ -1,0 +1,1 @@
+import {StaffGuard} from "@restaurant/db";import {KdsBoard} from "./board";export default async function Page(){return <StaffGuard allowedRoles={["kitchen","admin"]}><main className="staff-page" dir="rtl"><header><small>KITCHEN DISPLAY</small><h1>تذاكر المطبخ</h1><p>انقل التذكرة إلى المرحلة التالية.</p></header><KdsBoard/></main></StaffGuard>}

@@ -1,0 +1,1 @@
+import {CustomerOrder} from "./customer-order";export const dynamic="force-dynamic";export default async function Page({params}:{params:Promise<{qr:string}>}){const {qr}=await params;return <CustomerOrder qr={qr}/>}

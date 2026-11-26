@@ -1,0 +1,16 @@
+begin;
+select plan(12);
+select has_table('public','profiles','profiles exists');
+select has_table('public','settings','settings exists');
+select has_table('public','orders','orders exists');
+select has_table('public','order_items','order_items exists');
+select has_table('public','restaurant_tables','restaurant_tables exists');
+select has_table('public','table_sessions','table_sessions exists');
+select has_table('public','payments','payments exists');
+select ok((select relrowsecurity from pg_class where oid='public.orders'::regclass), 'RLS enabled on orders');
+select ok((select relrowsecurity from pg_class where oid='public.payments'::regclass), 'RLS enabled on payments');
+select ok(not has_table_privilege('authenticated','public.orders','INSERT'), 'clients cannot insert orders directly');
+select ok(not has_table_privilege('authenticated','public.restaurant_tables','UPDATE'), 'clients cannot update tables directly');
+select ok(not has_function_privilege('anon','public.advance_order(uuid,public.order_status,text)','EXECUTE'), 'anon cannot advance order status');
+select * from finish();
+rollback;

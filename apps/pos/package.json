@@ -1,0 +1,21 @@
+{
+  "name": "@restaurant/pos",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "build": "next build",
+    "start": "next start -p 3002",
+    "lint": "prettier --check .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@restaurant/db": "workspace:*",
+    "@restaurant/ui": "workspace:*",
+    "@restaurant/i18n": "workspace:*",
+    "@restaurant/realtime": "workspace:*",
+    "next": "16.4.6",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  }
+}

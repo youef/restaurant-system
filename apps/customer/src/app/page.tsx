@@ -1,0 +1,1 @@
+export default function Home(){return <main className="customer-landing" dir="rtl"><span className="eyebrow">أهلاً بك</span><h1>اطلب من طاولتك<br/><em>بكل سهولة.</em></h1><p>امسح رمز QR الموجود على الطاولة لفتح القائمة المرتبطة بها.</p><div className="notice">لا تحتاج إلى إنشاء حساب أو إدخال بيانات شخصية.</div></main>}

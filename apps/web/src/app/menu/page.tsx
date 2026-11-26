@@ -1,0 +1,1 @@
+import {PortalFrame} from "@restaurant/ui";export default function Menu(){return <PortalFrame eyebrow="MENU" title="قائمتنا" description="تصفح القائمة. لإرسال طلب امسح QR الطاولة."><div className="empty-state">ستظهر أصناف المطعم هنا.</div></PortalFrame>}

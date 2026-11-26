@@ -1,0 +1,1 @@
+import {StaffGuard} from "@restaurant/db";import {WaiterBoard} from "./board";export default async function Page(){return <StaffGuard allowedRoles={["waiter","admin"]}><main className="staff-page" dir="rtl"><header><small>WAITER / SERVICE</small><h1>لوحة المهام</h1><p>طلبات الحساب أولاً، ثم الطلبات الجاهزة.</p></header><WaiterBoard/></main></StaffGuard>}
