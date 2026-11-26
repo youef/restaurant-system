@@ -111,14 +111,7 @@ grant execute on function public.set_table_status(uuid,public.table_status) to a
 grant execute on function public.add_tables(integer,integer) to authenticated;
 grant execute on function public.delete_table(uuid) to authenticated;
 
--- A Supabase helper is not an application RPC and is not callable by API roles.
-do $
-begin
-  if to_regprocedure('public.rls_auto_enable()') is not null then
-    execute 'revoke all on function public.rls_auto_enable() from public, anon, authenticated';
-  end if;
-end;
-$;
+-- No application RPC remains SECURITY DEFINER in the exposed public schema.
 
 -- Cover remaining foreign keys.
 create index if not exists audit_logs_actor_id_idx on public.audit_logs(actor_id);
