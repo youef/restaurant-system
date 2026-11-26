@@ -3,3 +3,16 @@
 .payment-method-chip{display:inline-flex;align-items:center;justify-content:center;padding:6px 10px;border-radius:99px;font-size:.76rem;font-weight:900;white-space:nowrap}
 .payment-method-chip.cash{background:#eaf6ee;color:#217447}
 .payment-method-chip.card{background:#eaf1ff;color:#2454a6}
+
+
+/* Staff terminal interaction and dense POS controls */
+html,body{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%;overscroll-behavior:contain}
+body{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+input,textarea,select,[contenteditable=true]{user-select:text;-webkit-user-select:text}
+.pos-tabs{align-items:center;flex-wrap:wrap}
+.pos-refresh{margin-inline-start:auto!important}
+.pos-search{display:grid;gap:7px;margin:12px 0;color:var(--muted);font-weight:700}
+.pos-search input{width:100%;min-height:48px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font:inherit}
+.pos-order-card{scroll-margin-top:14px}
+.pos-order-card button{min-width:112px}
+@media(max-width:620px){.pos-tabs button{flex:1}.pos-refresh{flex-basis:100%;margin-inline-start:0!important}.pos-order-card header{flex-wrap:wrap}.pos-order-card footer{align-items:stretch;flex-direction:column}.pos-order-card footer .record-actions button{flex:1}}
