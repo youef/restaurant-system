@@ -1,8 +1,8 @@
 import type {MetadataRoute} from "next";
 export default function manifest():MetadataRoute.Manifest {
   return {
-    name:"طلب من الطاولة",
-    short_name:"طلب",
+    name:"قائمة الطعام | مطعمك",
+    short_name:"مطعمك",
     start_url:"/",
     scope:"/",
     display:"standalone",
