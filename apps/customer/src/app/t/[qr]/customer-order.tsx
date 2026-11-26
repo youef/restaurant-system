@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseBrowserClient } from "@restaurant/db/client";
 import { formatMoney } from "@restaurant/i18n";
-import { Search, ShoppingBag, ClipboardList, UtensilsCrossed, Plus, Minus, X, WifiOff, ArrowLeft, Check, Store, MapPin, Phone, Clock, LayoutGrid, List, Sparkles, ChefHat, Flame, Banknote, CreditCard, RefreshCw, ChevronDown, ChevronUp, RotateCcw, CalendarDays, ReceiptText, CircleCheck, Timer, AlertCircle, Bell, BellRing, ShieldCheck } from "lucide-react";
+import { Search, ShoppingBag, ClipboardList, UtensilsCrossed, Plus, Minus, X, WifiOff, ArrowLeft, Check, Store, MapPin, Phone, Clock, LayoutGrid, List, Sparkles, ChefHat, Flame, Banknote, CreditCard, RefreshCw, ChevronDown, ChevronUp, RotateCcw, CalendarDays, ReceiptText, CircleCheck, Timer, AlertCircle, Bell, BellRing, ShieldCheck, ScanLine } from "lucide-react";
 
 type Category = { id: string; name_ar: string; name_en: string | null; sort_order: number };
 type RestaurantSettings = { restaurant_name_ar: string; restaurant_name_en: string | null; logo_path: string | null; phone: string | null; address: string | null; opening_hours: Record<string, unknown> | null };
@@ -659,7 +659,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
       <main className="customer-landing customer-onboarding customer-qr-onboarding" dir="rtl">
         <span className="eyebrow">تم التحقق من بيانات العميل</span>
         <h1>امسح رمز<br/><em>طاولتك.</em></h1>
-        <p>افتح الكاميرا وامسح رمز QR المثبت على الطاولة التي تجلس عليها. نتحقق من توفرها قبل فتح القائمة.</p>
+        <p>{qr ? "بعد التحقق من بياناتك، أعد مسح الرمز من داخل المطعم حتى نتأكد من الطاولة المقصودة." : "افتح الكاميرا وامسح رمز QR المثبت على الطاولة التي تجلس عليها. نتحقق من توفرها قبل فتح القائمة."}</p>
         {message && <p className="customer-onboarding-error" role="status">{message}</p>}
         <div className={"customer-qr-camera " + (cameraActive ? "active" : "")}>
           <video ref={videoRef} playsInline muted aria-label="كاميرا مسح رمز الطاولة" />
