@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabaseBrowserClient } from "@restaurant/db/client";
 import { formatMoney } from "@restaurant/i18n";
-import { Search, ShoppingBag, ClipboardList, UtensilsCrossed, Plus, Minus, X, WifiOff, ArrowLeft, Check, Store, MapPin, Phone, Clock, LayoutGrid, List, Sparkles, ChefHat, Flame, Banknote, CreditCard } from "lucide-react";
+import { Search, ShoppingBag, ClipboardList, UtensilsCrossed, Plus, Minus, X, WifiOff, ArrowLeft, Check, Store, MapPin, Phone, Clock, LayoutGrid, List, Sparkles, ChefHat, Flame, Banknote, CreditCard, RefreshCw, ChevronDown, ChevronUp, RotateCcw, CalendarDays, ReceiptText, CircleCheck, Timer, AlertCircle } from "lucide-react";
 
 type Category = { id: string; name_ar: string; name_en: string | null; sort_order: number };
 type RestaurantSettings = { restaurant_name_ar: string; restaurant_name_en: string | null; logo_path: string | null; phone: string | null; address: string | null; opening_hours: Record<string, unknown> | null };
@@ -50,7 +50,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [cart, setCart] = useState<Record<string, CartLine>>({});
   const [quote, setQuote] = useState<Quote | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");\n  const [orderFilter, setOrderFilter] = useState<"all" | "active" | "completed" | "rejected">("all");\n  const [expandedOrders, setExpandedOrders] = useState<string[]>([]);\n  const [refreshingOrders, setRefreshingOrders] = useState(false);
   const [activeCategory, setActiveCategory] = useState("all");
   const [productLayout, setProductLayout] = useState<"grid" | "list">("grid");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -82,7 +82,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
 
     if (nextOrders.length) {
       const itemsResult = await supabase.from("order_items")
-        .select("id,order_id,name_ar,quantity,notes,line_total,station")
+        .select("id,order_id,product_id,name_ar,unit_price,quantity,notes,line_total,station")
         .in("order_id", nextOrders.map((order) => order.id));
       if (!itemsResult.error) setOrderItems((itemsResult.data ?? []) as OrderItem[]);
     } else {
@@ -529,31 +529,81 @@ export function CustomerOrder({ qr }: { qr: string }) {
 
           {view === "orders" && (
             <section className="orders-list">
-              <div className="page-heading"><span className="eyebrow">تابع طلباتك</span><h2>طلباتي</h2><p>كل طلباتك وحالتها في مكان واحد</p></div>
-              {orders.length === 0 && <div className="empty-state orders-empty"><ClipboardList size={34}/><h3>ما عندك طلبات حتى الآن</h3><p>بعد إرسال طلبك، تقدر تتابع حالته من هنا.</p><button className="action-button" onClick={() => setView("menu")}>استعرض القائمة</button></div>}\n              {orders.map((order) => {
-                const currentIndex = statusSteps.findIndex((step) => step.key === order.status);
-                const rejected = order.status === "rejected";
-                return (
-                  <article className="guest-order-card" key={order.id}>
-                    <div className="guest-order-top">
-                      <strong>#{order.order_no}</strong>
-                      <span>{rejected ? "مرفوض" : statusSteps[Math.max(0, currentIndex)]?.label ?? order.status}</span>
-                      <b>{formatMoney(Number(order.total))}</b>
-                    </div>
-                    <p className="guest-order-payment">{order.payment_method === "card" ? <><CreditCard size={14}/> الدفع عبر جهاز الشبكة</> : <><Banknote size={14}/> الدفع نقداً</>}</p>
-                    {!rejected && <div className="order-stepper">{statusSteps.map((step, index) => <span className={(index <= currentIndex ? "done " : "") + "step"} key={step.key}>{step.label}</span>)}</div>}
-                    <ul>{(orderItemMap.get(order.id) ?? []).map((item) => <li key={item.id}>{item.name_ar} × {item.quantity}{item.notes ? <small> — {item.notes}</small> : null}</li>)}</ul>
-                    {order.rejected_reason && <p className="rejection-note">سبب الرفض: {order.rejected_reason}</p>}
-                  </article>
-                );
-              })}
-              {billRequest?.status === "requested" && <p className="bill-status">تم إرسال طلب الحساب. النادل في الطريق إليك.</p>}
-              {billRequest?.status === "acknowledged" && <p className="bill-status">اطّلع النادل على طلب الحساب، وسيأتي إليك قريباً.</p>}
-              <button className="bill-button" disabled={busy || !!billRequest || !online} onClick={() => void requestBill()}>
-                {billRequest ? <><Check size={18}/> تم طلب الحساب</> : <>اطلب النادل للدفع <ArrowLeft size={17}/></>}
-              </button>
+              <header className="orders-hero">
+                <div><span className="eyebrow">تجربتك معنا</span><h2>طلباتي</h2><p>تابع طلباتك، راجع تفاصيلها، وأعد طلب ما تحب بسهولة.</p></div>
+                <button type="button" className="orders-refresh" disabled={refreshingOrders || !online} onClick={async () => {
+                  if (!sessionId) return;
+                  setRefreshingOrders(true);
+                  try { await refreshSession(sessionId); } finally { setRefreshingOrders(false); }
+                }} aria-label="تحديث الطلبات"><RefreshCw size={18} className={refreshingOrders ? "spin" : ""}/></button>
+              </header>
+              <div className="orders-overview">
+                <article className="orders-stat orders-stat-total"><span>إجمالي الطلبات</span><strong>{orders.length}</strong><small><ReceiptText size={14}/> طلب مسجل</small></article>
+                <article className="orders-stat orders-stat-active"><span>طلبات نشطة</span><strong>{orders.filter((order) => ["pending","approved","preparing","ready","served"].includes(order.status)).length}</strong><small><Timer size={14}/> قيد المتابعة</small></article>
+                <article className="orders-stat orders-stat-spend"><span>إجمالي مشترياتك</span><strong>{formatMoney(orders.reduce((sum, order) => sum + Number(order.total), 0))}</strong><small><CircleCheck size={14}/> شامل الضريبة</small></article>
+              </div>
+              <div className="orders-filter-bar" role="group" aria-label="تصفية الطلبات">
+                {([["all","الكل"],["active","النشطة"],["completed","المكتملة"],["rejected","المرفوضة"]] as const).map(([key,label]) => (
+                  <button type="button" key={key} className={orderFilter === key ? "active" : ""} aria-pressed={orderFilter === key} onClick={() => setOrderFilter(key)}>
+                    {label}<span>{key === "all" ? orders.length : key === "active" ? orders.filter((order) => ["pending","approved","preparing","ready","served"].includes(order.status)).length : key === "completed" ? orders.filter((order) => order.status === "paid").length : orders.filter((order) => order.status === "rejected").length}</span>
+                  </button>
+                ))}
+              </div>
+              {orders.length === 0 ? (
+                <div className="orders-empty-pro"><div className="orders-empty-art"><ClipboardList size={38}/></div><h3>بداية لذيذة تنتظرك</h3><p>لم ترسل أي طلب حتى الآن. تصفح القائمة واختر ما تشتهيه.</p><button className="action-button" onClick={() => setView("menu")}>اكتشف القائمة <ArrowLeft size={17}/></button></div>
+              ) : (
+                <div className="orders-feed">
+                  {orders.filter((order) => orderFilter === "all" || (orderFilter === "active" && ["pending","approved","preparing","ready","served"].includes(order.status)) || (orderFilter === "completed" && order.status === "paid") || (orderFilter === "rejected" && order.status === "rejected")).map((order) => {
+                    const currentIndex = statusSteps.findIndex((step) => step.key === order.status);
+                    const rejected = order.status === "rejected";
+                    const complete = order.status === "paid";
+                    const items = orderItemMap.get(order.id) ?? [];
+                    const expanded = expandedOrders.includes(order.id);
+                    const statusLabel = rejected ? "تم رفض الطلب" : statusSteps[Math.max(0, currentIndex)]?.label ?? order.status;
+                    const statusClass = rejected ? "rejected" : complete ? "completed" : "active";
+                    return (
+                      <article className={"guest-order-card order-card-pro " + statusClass} key={order.id}>
+                        <div className="order-card-accent"/>
+                        <div className="order-card-header"><div className="order-number-block"><span>رقم الطلب</span><strong>#{order.order_no}</strong></div><span className={"order-status-pill " + statusClass}>{rejected ? <AlertCircle size={14}/> : complete ? <Check size={14}/> : <Timer size={14}/>} {statusLabel}</span></div>
+                        <div className="order-card-meta">
+                          <span><CalendarDays size={14}/>{new Date(order.placed_at).toLocaleString("ar-SA",{dateStyle:"medium",timeStyle:"short"})}</span>
+                          <span>{items.length} أصناف</span>
+                          <span>{order.payment_method === "card" ? <CreditCard size={14}/> : <Banknote size={14}/>} {order.payment_method === "card" ? "شبكة" : "كاش"}</span>
+                        </div>
+                        {!rejected && <div className={"order-progress-pro " + (complete ? "is-complete" : "")}>{statusSteps.map((step,index) => <div className={"order-progress-step " + (index <= currentIndex ? "done" : "")} key={step.key}><i>{index < currentIndex || complete ? <Check size={11}/> : index + 1}</i><span>{step.label}</span></div>)}</div>}
+                        {rejected && <div className="order-rejected-note"><AlertCircle size={16}/><span>سبب الرفض: {order.rejected_reason || "يرجى التواصل مع الموظف لمزيد من التفاصيل."}</span></div>}
+                        <div className="order-card-total-row"><span>إجمالي الطلب</span><strong>{formatMoney(Number(order.total))}</strong></div>
+                        <button type="button" className="order-details-toggle" aria-expanded={expanded} onClick={() => setExpandedOrders((current) => expanded ? current.filter((id) => id !== order.id) : [...current,order.id])}><span>{expanded ? "إخفاء التفاصيل" : "عرض تفاصيل الطلب"} <small>{items.length} أصناف</small></span>{expanded ? <ChevronUp size={18}/> : <ChevronDown size={18}/>}</button>
+                        {expanded && <div className="order-details-panel">
+                          <div className="order-items-table">{items.map((item) => <div className="order-item-row" key={item.id}><div className="order-item-name"><strong>{item.name_ar}</strong><small>{formatMoney(Number(item.unit_price))} × {item.quantity}{item.notes ? " · " + item.notes : ""}</small></div><b>{formatMoney(Number(item.line_total))}</b></div>)}{items.length === 0 && <p className="order-no-items">لا توجد تفاصيل أصناف متاحة لهذا الطلب.</p>}</div>
+                          <div className="order-price-breakdown"><div><span>المجموع الفرعي</span><strong>{formatMoney(Number(order.subtotal))}</strong></div><div><span>ضريبة القيمة المضافة</span><strong>{formatMoney(Number(order.vat_amount))}</strong></div><div className="order-grand-total"><span>الإجمالي</span><strong>{formatMoney(Number(order.total))}</strong></div></div>
+                          {order.notes && <p className="order-general-note">ملاحظات الطلب: {order.notes}</p>}
+                        </div>}
+                        <div className="order-card-actions"><button type="button" className="order-repeat-button" disabled={busy || !items.length} onClick={() => {
+                          const next: Record<string,CartLine> = {};
+                          let skipped = 0;
+                          for (const item of items) {
+                            const product = products.find((candidate) => candidate.id === item.product_id && candidate.is_available);
+                            if (!product) { skipped += 1; continue; }
+                            const previous = next[item.product_id];
+                            next[item.product_id] = { quantity: Math.min(20,(previous?.quantity ?? 0) + Number(item.quantity)), notes: item.notes ?? previous?.notes ?? "" };
+                          }
+                          if (!Object.keys(next).length) { setMessage("أصناف هذا الطلب لم تعد متوفرة حالياً."); return; }
+                          setCart((current) => { const merged = { ...current }; for (const [id,line] of Object.entries(next)) merged[id] = { quantity: Math.min(20,(merged[id]?.quantity ?? 0) + line.quantity), notes: line.notes || merged[id]?.notes || "" }; return merged; });
+                          setView("cart");
+                          setMessage(skipped ? "أعدنا الأصناف المتاحة فقط، وبعض الأصناف لم تعد متوفرة." : "تمت إضافة أصناف الطلب السابق إلى سلتك.");
+                        }}><RotateCcw size={16}/> إعادة الطلب</button></div>
+                      </article>
+                    );
+                  })}
+                  {orders.filter((order) => orderFilter === "all" || (orderFilter === "active" && ["pending","approved","preparing","ready","served"].includes(order.status)) || (orderFilter === "completed" && order.status === "paid") || (orderFilter === "rejected" && order.status === "rejected")).length === 0 && <div className="orders-filter-empty">لا توجد طلبات ضمن هذا التصنيف.</div>}
+                </div>
+              )}
+              {billRequest?.status === "requested" && <p className="bill-status"><Check size={16}/> تم إرسال طلب الحساب. النادل في الطريق إليك.</p>}
+              {billRequest?.status === "acknowledged" && <p className="bill-status"><Check size={16}/> اطّلع النادل على طلب الحساب، وسيأتي إليك قريباً.</p>}
+              <button className="bill-button orders-bill-button" disabled={busy || !!billRequest || !online || !orders.length || sessionStatus === "closed"} onClick={() => void requestBill()}>{billRequest ? <><Check size={18}/> تم طلب الحساب</> : <>اطلب النادل للدفع <ArrowLeft size={17}/></>}</button>
             </section>
-          )}
+          )}}
         </>
       )}
     </main>
