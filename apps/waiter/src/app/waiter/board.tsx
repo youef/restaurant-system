@@ -7,7 +7,7 @@ import { formatMoney, formatDateTime } from "@restaurant/i18n";
 
 type Table = { id: string; number: number; seats: number; status: string };
 type Session = { id: string; table_id: string; opened_at: string };
-type Order = { id: string; order_no: number; table_id: string; session_id: string; status: string; total: number; placed_at: string };
+type Order = { id: string; order_no: number; table_id: string; session_id: string; status: string; total: number; placed_at: string; payment_method: "cash" | "card" };
 type Bill = { id: string; session_id: string; status: string; requested_at: string };
 type Item = { id: string; order_id: string; name_ar: string; quantity: number };
 
@@ -35,7 +35,7 @@ export function WaiterBoard() {
       const [tableResult, sessionResult, orderResult, billResult] = await Promise.all([
         db.from("restaurant_tables").select("id,number,seats,status").order("number"),
         db.from("table_sessions").select("id,table_id,opened_at").eq("status", "open"),
-        db.from("orders").select("id,order_no,table_id,session_id,status,total,placed_at").neq("status", "paid"),
+        db.from("orders").select("id,order_no,table_id,session_id,status,total,placed_at,payment_method").neq("status", "paid"),
         db.from("bill_requests").select("id,session_id,status,requested_at")
           .in("status", ["requested", "acknowledged"]).order("requested_at"),
       ]);
@@ -119,7 +119,7 @@ export function WaiterBoard() {
                 <div><strong>طاولة {sessionTable.get(bill.session_id) ?? "—"}</strong><p>{bill.status === "requested" ? "طلب جديد" : "تم الاطلاع على الحساب"}</p><small>{formatDateTime(bill.requested_at)}</small></div>
                 <div className="record-actions">
                   {bill.status === "requested" && <button className="action-button secondary" disabled={busy} onClick={() => void acknowledge(bill)}>استلام</button>}
-                  <button className="action-button" onClick={() => { setSelectedBill(bill); setMethod("cash"); setReceived(""); }}>استلام الدفع</button>
+                  <button className="action-button" onClick={() => { setSelectedBill(bill); { const methods = orders.filter((order) => order.session_id === bill.session_id).map((order) => order.payment_method); setMethod(methods.length && methods.every((value) => value === methods[0]) ? methods[0] : "cash"); } setReceived(""); }}>استلام الدفع</button>
                 </div>
               </article>
             ))}
@@ -129,7 +129,7 @@ export function WaiterBoard() {
             <div className="section-title"><h2>جاهز للتقديم</h2><span>{orders.filter((order) => order.status === "ready").length}</span></div>
             {orders.filter((order) => order.status === "ready").map((order) => (
               <article className="waiter-task-card" key={order.id}>
-                <div><strong>طلب #{order.order_no} · طاولة {tableNumbers.get(order.table_id) ?? "—"}</strong><p>{formatMoney(Number(order.total))}</p>
+                <div><strong>طلب #{order.order_no} · طاولة {tableNumbers.get(order.table_id) ?? "—"}</strong><p>{formatMoney(Number(order.total))}</p><small className="waiter-payment-method">{order.payment_method === "card" ? "طريقة الدفع المختارة: شبكة" : "طريقة الدفع المختارة: كاش"}</small>
                   <ul>{items.filter((item) => item.order_id === order.id).map((item) => <li key={item.id}>{item.name_ar} × {item.quantity}</li>)}</ul>
                 </div>
                 <button className="action-button" disabled={busy} onClick={() => void markServed(order)}>تم التقديم</button>
