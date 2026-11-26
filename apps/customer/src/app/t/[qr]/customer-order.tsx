@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseBrowserClient } from "@restaurant/db/client";
 import { formatMoney } from "@restaurant/i18n";
-import { Search, ShoppingBag, ClipboardList, UtensilsCrossed, Plus, Minus, X, WifiOff, ArrowLeft, Check, Store, MapPin, Phone, Clock, LayoutGrid, List, Sparkles, ChefHat, Flame, Banknote, CreditCard, RefreshCw, ChevronDown, ChevronUp, RotateCcw, CalendarDays, ReceiptText, CircleCheck, Timer, AlertCircle } from "lucide-react";
+import { Search, ShoppingBag, ClipboardList, UtensilsCrossed, Plus, Minus, X, WifiOff, ArrowLeft, Check, Store, MapPin, Phone, Clock, LayoutGrid, List, Sparkles, ChefHat, Flame, Banknote, CreditCard, RefreshCw, ChevronDown, ChevronUp, RotateCcw, CalendarDays, ReceiptText, CircleCheck, Timer, AlertCircle, Bell, BellRing, ShieldCheck } from "lucide-react";
 
 type Category = { id: string; name_ar: string; name_en: string | null; sort_order: number };
 type RestaurantSettings = { restaurant_name_ar: string; restaurant_name_en: string | null; logo_path: string | null; phone: string | null; address: string | null; opening_hours: Record<string, unknown> | null };
@@ -38,9 +38,28 @@ function imageUrl(path: string | null) {
   return getSupabaseBrowserClient().storage.from("product-images").getPublicUrl(path).data.publicUrl;
 }
 
+function phoneToE164(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (/^05[0-9]{8}$/.test(digits)) return "+966" + digits.slice(1);
+  if (/^9665[0-9]{8}$/.test(digits)) return "+" + digits;
+  if (/^5[0-9]{8}$/.test(digits)) return "+966" + digits;
+  return null;
+}
+function base64UrlToUint8Array(value: string) {
+  const padding = "=".repeat((4 - value.length % 4) % 4);
+  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = window.atob(base64);
+  return Uint8Array.from(raw, (character) => character.charCodeAt(0));
+}
 export function CustomerOrder({ qr }: { qr: string }) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const [tableNumber, setTableNumber] = useState<number | null>(null);
+  const [phone, setPhone] = useState("");
+  const [phoneInput, setPhoneInput] = useState("");
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">("default");
+  const [notificationsBusy, setNotificationsBusy] = useState(false);
+  const [pushReady, setPushReady] = useState(false);
+  const previousOrderStatuses = useRef<Record<string, string>>({});
   const [restaurant, setRestaurant] = useState<RestaurantSettings | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionStatus, setSessionStatus] = useState<"open" | "closed">("open");
@@ -94,15 +113,43 @@ export function CustomerOrder({ qr }: { qr: string }) {
   }, [supabase]);
 
   useEffect(() => {
+    const savedPhone = window.sessionStorage.getItem("customer-visit-phone");
+    if (savedPhone) {
+      setPhone(savedPhone);
+      setPhoneInput(savedPhone);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      setNotificationPermission("unsupported");
+      return;
+    }
+    setNotificationPermission(Notification.permission);
+  }, []);
+
+  useEffect(() => {
     let active = true;
     async function bootstrap() {
+      if (!phone) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setMessage("جارٍ تجهيز طاولتك...");
       const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) {
-        const { error: authError } = await supabase.auth.signInAnonymously();
+      let guestUser = authData.user;
+      if (!guestUser) {
+        const { data: signInData, error: authError } = await supabase.auth.signInAnonymously();
         if (authError) throw new Error("تعذر بدء جلسة العميل. تأكد من تفعيل تسجيل الدخول المجهول في Supabase.");
+        guestUser = signInData.user;
       }
+      if (!guestUser) throw new Error("تعذر إنشاء جلسة العميل.");
+      const { error: contactError } = await supabase.from("customer_contacts").upsert({
+        user_id: guestUser.id,
+        phone_e164: phoneToE164(phone),
+      }, { onConflict: "user_id" });
+      if (contactError) throw new Error("تعذر حفظ رقم الجوال بشكل آمن: " + contactError.message);
 
       const { data: resolved, error: resolveError } = await supabase.rpc("resolve_table", { p_qr: qr });
       if (resolveError || !resolved?.length) throw new Error("رمز الطاولة غير صحيح أو لم يعد متاحاً.");
@@ -142,7 +189,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
     });
 
     return () => { active = false; };
-  }, [qr, refreshSession, supabase]);
+  }, [phone, qr, refreshSession, supabase]);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("customer-product-layout");
@@ -292,7 +339,79 @@ export function CustomerOrder({ qr }: { qr: string }) {
     }));
   }
 
+  async function enableNotifications() {
+    if (notificationsBusy) return;
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      setNotificationPermission("unsupported");
+      setMessage("هذا المتصفح لا يدعم إشعارات الويب. استخدم متصفحاً حديثاً.");
+      return;
+    }
+    setNotificationsBusy(true);
+    try {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      if (permission !== "granted") {
+        setMessage(permission === "denied"
+          ? "تم رفض الإشعارات. فعّلها من إعدادات الموقع في المتصفح ثم أعد المحاولة."
+          : "نحتاج السماح بالإشعارات حتى نرسل لك تحديثات الطلب.");
+        return;
+      }
+      const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (publicKey && sessionId) {
+        const registration = await navigator.serviceWorker.ready;
+        let subscription = await registration.pushManager.getSubscription();
+        if (!subscription) {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: base64UrlToUint8Array(publicKey),
+          });
+        }
+        const json = subscription.toJSON();
+        const { data: authData } = await supabase.auth.getUser();
+        if (!authData.user || !json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+          throw new Error("تعذر حفظ اشتراك الإشعارات.");
+        }
+        const { error } = await supabase.from("customer_push_subscriptions").upsert({
+          endpoint: json.endpoint,
+          user_id: authData.user.id,
+          p256dh: json.keys.p256dh,
+          auth_secret: json.keys.auth,
+          enabled: true,
+        }, { onConflict: "endpoint" });
+        if (error) throw error;
+        setPushReady(true);
+      }
+      setMessage("تم تفعيل إذن التنبيهات. ستصلك تحديثات الطلب حسب دعم المتصفح وإعدادات الجهاز.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "تعذر تفعيل التنبيهات.");
+    } finally {
+      setNotificationsBusy(false);
+    }
+  }
+
+  function startVisit() {
+    const normalized = phoneToE164(phoneInput);
+    if (!normalized) {
+      setMessage("أدخل رقم جوال سعودي صحيحاً، مثل 05XXXXXXXX.");
+      return;
+    }
+    window.sessionStorage.setItem("customer-visit-phone", normalized);
+    setPhone(normalized);
+    setPhoneInput(normalized);
+    setLoading(true);
+    setMessage("جارٍ تجهيز طاولتك...");
+  }
+
+  function resetClosedVisit() {
+    window.sessionStorage.removeItem("customer-visit-phone");
+    void supabase.auth.signOut().finally(() => window.location.reload());
+  }
+
   async function sendOrder() {
+    if (notificationPermission !== "granted") {
+      setMessage("فعّل إشعارات الطلب أولاً حتى نتمكن من تنبيهك عند تغيّر الحالة.");
+      return;
+    }
     if (!sessionId || !cartItems.length || !quote || busy || sessionStatus !== "open") return;
     setBusy(true);
     setMessage("");
@@ -326,6 +445,23 @@ export function CustomerOrder({ qr }: { qr: string }) {
     }
   }
 
+  if (!phone) {
+    return (
+      <main className="customer-landing customer-onboarding" dir="rtl">
+        <span className="eyebrow">أهلاً بك في مطعمك</span>
+        <h1>ابدأ زيارتك<br/><em>من هنا.</em></h1>
+        <p>أدخل رقم جوالك لربط طلبات هذه الزيارة بطاولتك ومتابعة حالة الطلب.</p>
+        <form className="customer-phone-form" onSubmit={(event) => { event.preventDefault(); startVisit(); }}>
+          <label htmlFor="customer-phone">رقم الجوال</label>
+          <input id="customer-phone" inputMode="tel" autoComplete="tel" dir="ltr" placeholder="05XXXXXXXX" value={phoneInput} onChange={(event) => setPhoneInput(event.target.value)} maxLength={16}/>
+          {message && <p className="customer-onboarding-error" role="alert">{message}</p>}
+          <button className="action-button" type="submit">متابعة إلى القائمة <ArrowLeft size={17}/></button>
+        </form>
+        <small className="customer-privacy-note"><ShieldCheck size={15}/> رقمك يستخدم لربط الزيارة الحالية فقط. لا نعرض سجل أشخاص آخرين بمجرد إدخال رقم جوال.</small>
+      </main>
+    );
+  }
+
   if (loading) {
     return <main className="customer-landing" dir="rtl"><span className="eyebrow">أهلاً بك</span><h1>نجهّز طاولتك</h1><p>يتم تحميل القائمة وربط جلستك...</p></main>;
   }
@@ -353,6 +489,23 @@ export function CustomerOrder({ qr }: { qr: string }) {
         {!online && <span className="offline-inline"><WifiOff size={14}/> غير متصل</span>}
       </div>
 
+      <section className="customer-notification-card" aria-live="polite">
+        <span className="customer-notification-icon">{notificationPermission === "granted" ? <BellRing size={22}/> : <Bell size={22}/>}</span>
+        <div className="customer-notification-copy">
+          <strong>{notificationPermission === "granted" ? "تنبيهات الطلب مفعّلة" : "فعّل تنبيهات طلبك"}</strong>
+          <p>{notificationPermission === "granted"
+            ? (pushReady ? "سيصلك إشعار عند تحديث حالة الطلب، حتى عند مغادرة الصفحة." : "تم السماح بالتنبيهات. دعم وصولها بعد إغلاق الصفحة يتطلب إعداد خدمة Push للمتجر.")
+            : notificationPermission === "denied"
+              ? "الإشعارات محظورة من المتصفح. افتح إعدادات الموقع واسمح بها."
+              : "نحتاج إذنك لإشعارك عند اعتماد الطلب وجاهزيته."}</p>
+        </div>
+        {notificationPermission !== "granted" && notificationPermission !== "unsupported" && (
+          <button type="button" onClick={() => void enableNotifications()} disabled={notificationsBusy}>
+            {notificationsBusy ? "جارٍ التفعيل..." : "تفعيل"}
+          </button>
+        )}
+      </section>
+
       {message && <p className="feedback" role="status">{message}</p>}
       {!online && <p className="offline-banner" role="status">لا يوجد اتصال، تظهر آخر حالة محفوظة وسيعاد الاتصال تلقائياً.</p>}
 
@@ -360,8 +513,8 @@ export function CustomerOrder({ qr }: { qr: string }) {
         <section className="thanks-panel">
           <span aria-hidden="true"><Check size={34}/></span>
           <h2>شكراً لزيارتكم في {restaurant?.restaurant_name_ar || "مطعمك"}!</h2>
-          <p>تم إغلاق الحساب وإتاحة الطاولة من جديد.</p>
-          {orders.map((order) => <p key={order.id}>الطلب #{order.order_no} · {formatMoney(Number(order.total))}</p>)}
+          <p>تم إغلاق الحساب وإتاحة الطاولة من جديد. بيانات الزيارة السابقة لن تظهر للعميل التالي.</p>
+          <button className="action-button" type="button" onClick={resetClosedVisit}>إنهاء الزيارة والبدء من جديد</button>
         </section>
       ) : (
         <>
