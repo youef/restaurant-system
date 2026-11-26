@@ -33,3 +33,13 @@ input,textarea,select,[contenteditable=true]{user-select:text;-webkit-user-selec
 .admin-topbar-actions a{display:inline-flex;align-items:center;min-height:40px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);text-decoration:none;font-size:.84rem;font-weight:800}
 .admin-topbar-actions a:hover{border-color:var(--accent);color:var(--accent)}
 @media(max-width:760px){.admin-topbar{align-items:flex-start;flex-direction:column;gap:12px}.admin-topbar-actions{width:100%}.admin-topbar-actions a{flex:1;justify-content:center}}
+
+/* Clear table number and state labels in the admin floor list */
+.qr-print-card{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px;min-width:0}
+.qr-print-card>div:first-child{display:grid;gap:7px;min-width:0}
+.table-number-label{display:flex;align-items:baseline;gap:9px;font-size:1.75rem;font-weight:950;line-height:1.2;color:var(--ink)}
+.table-number-label span{font-size:.76rem;color:var(--muted);font-weight:800}
+.qr-print-card .state-pill.occupied{background:#fff0df;color:#9a5318}
+.qr-print-card .state-pill.active{background:#e7f8ef;color:#16814b}
+.qr-print-card .state-pill.inactive{background:#f1eeee;color:#777}
+@media(max-width:560px){.qr-print-card{grid-template-columns:minmax(0,1fr) auto;padding:13px}.table-number-label{font-size:1.45rem}.qr-print-card svg{width:86px;height:86px}}
