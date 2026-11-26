@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabaseBrowserClient } from "@restaurant/db/client";
 import { formatMoney } from "@restaurant/i18n";
-import { Search, ShoppingBag, ClipboardList, UtensilsCrossed, Plus, Minus, X, WifiOff, ArrowLeft, Check, Store, MapPin, Phone, Clock, LayoutGrid, List } from "lucide-react";
+import { Search, ShoppingBag, ClipboardList, UtensilsCrossed, Plus, Minus, X, WifiOff, ArrowLeft, Check, Store, MapPin, Phone, Clock, LayoutGrid, List, Sparkles, ChefHat, Flame } from "lucide-react";
 
 type Category = { id: string; name_ar: string; name_en: string | null; sort_order: number };
 type RestaurantSettings = { restaurant_name_ar: string; restaurant_name_en: string | null; logo_path: string | null; phone: string | null; address: string | null; opening_hours: Record<string, unknown> | null };
@@ -384,10 +384,11 @@ export function CustomerOrder({ qr }: { qr: string }) {
                     <article className="product-card" key={product.id}>
                       <button type="button" className="product-details-trigger" onClick={() => setSelectedProduct(product)} aria-label={"عرض تفاصيل " + product.name_ar}>
                         {img ? <img className="product-image" src={img} alt={product.name_ar} loading="lazy" /> : <div className="product-art" aria-hidden="true"><UtensilsCrossed size={34}/></div>}
-                        <span className="product-details-label"><span>عرض التفاصيل</span><ArrowLeft size={15}/></span>
+                        {product.is_featured && <span className="product-featured-badge"><Sparkles size={13}/> مميز</span>}<span className="product-details-label"><span>التفاصيل</span><ArrowLeft size={15}/></span>
                       </button>
                       <h2>{product.name_ar}</h2>
                       {product.description_ar && <p className="product-description">{product.description_ar}</p>}
+                      {product.station && <span className="product-station-chip"><ChefHat size={13}/>{({ kitchen: "المطبخ", grill: "الشواية", bar: "المشروبات", dessert: "الحلويات" } as Record<string,string>)[product.station] ?? product.station}</span>}
                       <strong className="product-price">{formatMoney(Number(product.price))}</strong>
                       {product.is_available ? (
                         <button className="product-add" onClick={() => changeQuantity(product.id, 1)}>
