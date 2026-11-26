@@ -117,6 +117,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const [restaurant, setRestaurant] = useState<RestaurantSettings | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionStatus, setSessionStatus] = useState<"open" | "closed">("open");
+  const [exitRequestedAt, setExitRequestedAt] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -248,7 +249,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
         .select("id,session_id,order_no,status,subtotal,vat_amount,total,notes,rejected_reason,placed_at,payment_method")
         .eq("customer_id", profileId)
         .order("placed_at", { ascending: false }),
-      supabase.from("table_sessions").select("status").eq("id", id).maybeSingle(),
+      supabase.from("table_sessions").select("status,customer_exit_requested_at").eq("id", id).maybeSingle(),
       supabase.from("bill_requests").select("id,status").eq("session_id", id)
         .in("status", ["requested", "acknowledged", "closed"])
         .order("requested_at", { ascending: false }).limit(1).maybeSingle(),
@@ -258,6 +259,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
     const nextOrders = (orderResult.data ?? []) as Order[];
     setOrders(nextOrders);
     if (sessionResult.data?.status) setSessionStatus(sessionResult.data.status as "open" | "closed");
+    setExitRequestedAt((sessionResult.data?.customer_exit_requested_at as string | null) ?? null);
     setBillRequest((billResult.data ?? null) as BillRequest | null);
 
     if (nextOrders.length) {
@@ -694,10 +696,39 @@ export function CustomerOrder({ qr }: { qr: string }) {
     setMessage("جارٍ التحقق من بياناتك وتجهيز الطاولة...");
   }
 
-  function resetClosedVisit() {
+  async function recordLogoutAndSignOut() {
+    if (busy) return;
+    if (!window.confirm("هل تريد تسجيل الخروج؟ سيبقى حساب الطاولة مفتوحاً حتى يُغلقه الموظف بعد التسوية.")) return;
+    setBusy(true);
+    const { error } = await supabase.rpc("record_customer_logout", { p_session_id: sessionId });
+    if (error) {
+      setBusy(false);
+      setMessage("تعذر تسجيل الخروج في سجل الزيارة: " + error.message);
+      return;
+    }
     window.sessionStorage.removeItem("customer-visit-phone");
     window.sessionStorage.removeItem("customer-visit-birth-year");
-    void supabase.auth.signOut().finally(() => window.location.reload());
+    await supabase.auth.signOut();
+    window.location.reload();
+  }
+
+  function resetClosedVisit() {
+    void recordLogoutAndSignOut();
+  }
+
+  async function requestCustomerExit() {
+    if (!sessionId || busy || sessionStatus !== "open" || exitRequestedAt || !online) return;
+    if (!window.confirm("سيتم إرسال طلب إنهاء الزيارة إلى النادل. لن تُغلق الطاولة نهائياً حتى تتم تسوية الحساب من الموظف. متابعة؟")) return;
+    setBusy(true);
+    setMessage("");
+    const { error } = await supabase.rpc("request_customer_exit", { p_session_id: sessionId });
+    setBusy(false);
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    if (customerId) await refreshSession(sessionId, customerId);
+    setMessage("تم تسجيل طلب مغادرة الطاولة وإبلاغ النادل. انتظر تسوية الحساب وإغلاق الجلسة.");
   }
 
   async function sendOrder() {
@@ -705,7 +736,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
       setMessage("فعّل إشعارات الطلب أولاً حتى نتمكن من تنبيهك عند تغيّر الحالة.");
       return;
     }
-    if (!sessionId || !cartItems.length || !quote || busy || sessionStatus !== "open") return;
+    if (!sessionId || !cartItems.length || !quote || busy || sessionStatus !== "open" || exitRequestedAt) return;
     setBusy(true);
     setMessage("");
     const { data, error } = await supabase.rpc("place_order", {
@@ -827,6 +858,21 @@ export function CustomerOrder({ qr }: { qr: string }) {
         {restaurant?.phone && <a href={"tel:" + restaurant.phone}><Phone size={15}/> تواصل معنا</a>}
         {!online && <span className="offline-inline"><WifiOff size={14}/> غير متصل</span>}
       </div>
+
+      <section className="customer-visit-actions" aria-label="إدارة الزيارة">
+        <div>
+          <strong>{exitRequestedAt ? "طلب مغادرة الطاولة مسجل" : "إنهاء زيارتك"}</strong>
+          <small>{exitRequestedAt
+            ? "تم إبلاغ النادل. لن تُحرر الطاولة حتى تتم تسوية الحساب وإغلاق الجلسة."
+            : "اطلب من النادل تسوية الحساب وتسجيل مغادرتك. لا تغلق الصفحة فقط."}</small>
+        </div>
+        <button type="button" className="action-button" disabled={busy || !!exitRequestedAt || !online || sessionStatus === "closed"} onClick={() => void requestCustomerExit()}>
+          {busy ? "جارٍ التسجيل..." : exitRequestedAt ? "تم إرسال طلب المغادرة" : "طلب إنهاء الزيارة"}
+        </button>
+        <button type="button" className="action-button secondary" disabled={busy} onClick={() => void recordLogoutAndSignOut()}>
+          تسجيل الخروج فقط
+        </button>
+      </section>
 
       <section className="customer-notification-card" aria-live="polite">
         <span className="customer-notification-icon">{notificationPermission === "granted" ? <BellRing size={22}/> : <Bell size={22}/>}</span>
@@ -1013,7 +1059,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
                   </section>
                   <div className="cart-checkout-area">
                     <div className="cart-checkout-total"><span>الإجمالي المستحق</span><strong>{quote ? formatMoney(quote.total) : "—"}</strong></div>
-                    <button className="action-button send-order" disabled={!quote || busy || !online} onClick={() => void sendOrder()}>
+                    <button className="action-button send-order" disabled={!quote || busy || !online || !!exitRequestedAt} onClick={() => void sendOrder()}>
                       {busy ? "جارٍ إرسال طلبك..." : <><ShoppingBag size={19}/> تأكيد الطلب وإرساله <ArrowLeft size={17}/></>}
                     </button>
                     {!online && <p className="cart-checkout-hint">تحقق من اتصال الإنترنت لإرسال طلبك.</p>}
