@@ -794,3 +794,12 @@ body {
 .customer-table-picker-empty{margin:10px 0 0;color:var(--muted);font-size:.8rem;text-align:center}
 .customer-qr-camera video{background:#080808;transform:translateZ(0)}
 @media(max-width:390px){.customer-table-picker{padding:13px}.customer-table-picker-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.customer-table-choice{min-height:82px}}
+
+.customer-visit-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 18px;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}
+.customer-visit-actions>div{display:flex;flex:1 1 100%;flex-direction:column;gap:4px}
+.customer-visit-actions strong{font-size:.95rem}
+.customer-visit-actions small{color:var(--muted);line-height:1.7}
+.customer-visit-actions .action-button{min-height:42px;padding:0 14px}
+.customer-visit-actions .action-button.secondary{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.customer-visit-actions button:disabled{opacity:.6;cursor:not-allowed}
+@media(max-width:480px){.customer-visit-actions .action-button{flex:1 1 100%}}
