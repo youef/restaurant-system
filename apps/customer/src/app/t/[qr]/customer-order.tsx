@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabaseBrowserClient } from "@restaurant/db/client";
 import { formatMoney } from "@restaurant/i18n";
-import { Search, ShoppingBag, ClipboardList, UtensilsCrossed, Plus, Minus, X, WifiOff, ArrowLeft, Check, Store, MapPin, Phone, Clock, Star } from "lucide-react";
+import { Search, ShoppingBag, ClipboardList, UtensilsCrossed, Plus, Minus, X, WifiOff, ArrowLeft, Check, Store, MapPin, Phone, Clock } from "lucide-react";
 
 type Category = { id: string; name_ar: string; name_en: string | null; sort_order: number };
 type RestaurantSettings = { restaurant_name_ar: string; restaurant_name_en: string | null; logo_path: string | null; phone: string | null; address: string | null; opening_hours: Record<string, unknown> | null };
@@ -119,12 +119,14 @@ export function CustomerOrder({ qr }: { qr: string }) {
         supabase.from("products")
           .select("id,category_id,name_ar,name_en,description_ar,price,image_path,is_available,is_featured,sort_order,station")
           .eq("is_active", true).order("sort_order"),
+        supabase.from("settings").select("restaurant_name_ar,restaurant_name_en,logo_path,phone,address,opening_hours").eq("id", 1).maybeSingle(),
       ]);
       if (categoryResult.error) throw categoryResult.error;
       if (productResult.error) throw productResult.error;
       if (active) {
         setCategories((categoryResult.data ?? []) as Category[]);
         setProducts((productResult.data ?? []) as Product[]);
+        setRestaurant((settingsResult.data ?? null) as RestaurantSettings | null);
         setMessage("");
       }
       await refreshSession(id);
@@ -289,23 +291,29 @@ export function CustomerOrder({ qr }: { qr: string }) {
   return (
     <main className="customer-app" dir="rtl">
       <header className="customer-header">
-        <div>
-          <span className="eyebrow">أهلاً بك في مطعمنا</span>
-          <h1>طاولة {tableNumber}</h1>
-          <p>{sessionStatus === "closed" ? "شكراً لزيارتكم، نتمنى رؤيتكم قريباً." : "اختر أطباقك واستمتع بوقتك."}</p>
+        <div className="restaurant-brand">
+          <span className="restaurant-logo">{restaurant?.logo_path ? <img src={imageUrl(restaurant.logo_path) ?? ""} alt="" /> : <Store size={25}/>}</span>
+          <div className="restaurant-identity">
+            <span className="eyebrow">مرحباً بك في</span>
+            <h1>{restaurant?.restaurant_name_ar || "مطعمك"}</h1>
+            <p>{restaurant?.address ? <><MapPin size={14}/>{restaurant.address}</> : "قائمة طعامنا بين يديك"}</p>
+          </div>
         </div>
-        <span className={"connection-state " + (online ? "is-online" : "is-offline")}>
-          {online ? <><Wifi size={15}/> متصل</> : <><WifiOff size={15}/> غير متصل</>}
-        </span>
+        <div className="table-chip"><span>رقم الطاولة</span><strong>{tableNumber}</strong></div>
       </header>
+      <div className="customer-context">
+        <span><Clock size={15}/> اطلب مباشرة من طاولتك</span>
+        {restaurant?.phone && <a href={"tel:" + restaurant.phone}><Phone size={15}/> تواصل معنا</a>}
+        {!online && <span className="offline-inline"><WifiOff size={14}/> غير متصل</span>}
+      </div>
 
       {message && <p className="feedback" role="status">{message}</p>}
       {!online && <p className="offline-banner" role="status">لا يوجد اتصال، تظهر آخر حالة محفوظة وسيعاد الاتصال تلقائياً.</p>}
 
       {sessionStatus === "closed" ? (
         <section className="thanks-panel">
-          <span aria-hidden="true">✦</span>
-          <h2>شكراً لزيارتكم!</h2>
+          <span aria-hidden="true"><Check size={34}/></span>
+          <h2>شكراً لزيارتكم في {restaurant?.restaurant_name_ar || "مطعمك"}!</h2>
           <p>تم إغلاق الحساب وإتاحة الطاولة من جديد.</p>
           {orders.map((order) => <p key={order.id}>الطلب #{order.order_no} · {formatMoney(Number(order.total))}</p>)}
         </section>
@@ -319,8 +327,8 @@ export function CustomerOrder({ qr }: { qr: string }) {
 
           {view === "menu" && (
             <section className="customer-menu">
-              <label className="menu-search-wrap"><Search size={19}/><input className="menu-search" type="search" aria-label="ابحث عن طبق" placeholder="وش تشتهي اليوم؟ ابحث عن طبق..." value={search} onChange={(event) => setSearch(event.target.value)} />{search && <button type="button" onClick={() => setSearch("")} aria-label="مسح البحث"><X size={17}/></button>}</label>
-              <div className="menu-intro"><div><span className="eyebrow">قائمة الطعام</span><h2>اختر اللي تحبه <Sparkles size={21}/></h2><p>أطباق طازجة تُحضّر بكل عناية</p></div><span className="menu-intro-mark"><ChefHat size={28}/></span></div><div className="category-strip">
+              <label className="menu-search-wrap"><Search size={19}/><input className="menu-search" type="search" aria-label="ابحث عن طبق" placeholder="ابحث عن طبقك المفضل..." value={search} onChange={(event) => setSearch(event.target.value)} />{search && <button type="button" onClick={() => setSearch("")} aria-label="مسح البحث"><X size={17}/></button>}</label>
+              <div className="menu-heading"><div><span className="eyebrow">اكتشف قائمتنا</span><h2>وش ودّك تطلب؟</h2></div><span className="menu-result-count">{filteredProducts.length} صنف</span></div><div className="category-strip">
                 <button className={activeCategory === "all" ? "selected" : ""} onClick={() => setActiveCategory("all")}>الكل</button>
                 {categories.map((category) => (
                   <button className={activeCategory === category.id ? "selected" : ""} key={category.id} onClick={() => setActiveCategory(category.id)}>
@@ -435,7 +443,6 @@ export function CustomerOrder({ qr }: { qr: string }) {
                   </article>
                 );
               })}
-              {orders.length === 0 && <div className="empty-state"><p>لم ترسل أي طلب بعد.</p><button className="action-button" onClick={() => setView("menu")}>ابدأ طلبك</button></div>}
               {billRequest?.status === "requested" && <p className="bill-status">تم إرسال طلب الحساب. النادل في الطريق إليك.</p>}
               {billRequest?.status === "acknowledged" && <p className="bill-status">اطّلع النادل على طلب الحساب، وسيأتي إليك قريباً.</p>}
               <button className="bill-button" disabled={busy || !!billRequest || !online} onClick={() => void requestBill()}>
