@@ -20,6 +20,8 @@ export function PosQueue() {
   const [bills, setBills] = useState<Bill[]>([]);
   const [message, setMessage] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [refreshTick, setRefreshTick] = useState(0);
   const orderRevision = useRealtimeRefresh("orders");
   const itemRevision = useRealtimeRefresh("order_items");
   const billRevision = useRealtimeRefresh("bill_requests");
@@ -64,8 +66,8 @@ export function PosQueue() {
     if (!tableResult.error) setTables((tableResult.data ?? []) as Table[]);
   }
 
-  useEffect(() => { void loadOrders(); }, [orderRevision, itemRevision]);
-  useEffect(() => { void loadAccounts(); }, [billRevision, sessionRevision, orderRevision]);
+  useEffect(() => { void loadOrders(); }, [orderRevision, itemRevision, refreshTick]);
+  useEffect(() => { void loadAccounts(); }, [billRevision, sessionRevision, orderRevision, refreshTick]);
 
   const tableNumbers = useMemo(() => new Map(tables.map((table) => [table.id, table.number])), [tables]);
   const orderLines = useMemo(() => {
@@ -74,6 +76,12 @@ export function PosQueue() {
     return map;
   }, [items]);
   const openBillSessions = new Set(bills.map((bill) => bill.session_id));
+  const visibleOrders = orders.filter((order) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return String(order.order_no).includes(q) || String(tableNumbers.get(order.table_id) ?? "").includes(q)
+      || (orderLines.get(order.id) ?? []).some((item) => item.name_ar.toLowerCase().includes(q));
+  });
 
   async function advance(order: Order, status: "approved" | "rejected") {
     let reason: string | null = null;
@@ -100,6 +108,7 @@ export function PosQueue() {
       <nav className="pos-tabs">
         <button aria-pressed={view === "orders"} onClick={() => setView("orders")}>الطلبات المعلّقة ({orders.length})</button>
         <button aria-pressed={view === "accounts"} onClick={() => setView("accounts")}>الحسابات المفتوحة ({sessions.length})</button>
+        <button className="pos-refresh" onClick={() => setRefreshTick((value) => value + 1)}>تحديث البيانات</button>
       </nav>
       {message && <p className="feedback" role="alert">{message}</p>}
 
@@ -107,7 +116,8 @@ export function PosQueue() {
         <div className="pos-order-grid">
           <section className="queue-panel">
             <div className="section-title"><h2>قائمة الانتظار</h2><span>{orders.length} طلب</span></div>
-            {orders.map((order) => (
+            <label className="pos-search">بحث سريع<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="رقم الطلب أو الطاولة أو الصنف" /></label>
+            {visibleOrders.map((order) => (
               <article className="pos-order-card" key={order.id}>
                 <header>
                   <strong className="mono-number">#{order.order_no}</strong>
@@ -131,6 +141,7 @@ export function PosQueue() {
               </article>
             ))}
             {!orders.length && <div className="empty-state"><h3>لا توجد طلبات معلّقة</h3><p>الطلبات الجديدة ستظهر هنا تلقائياً.</p></div>}
+            {!!orders.length && !visibleOrders.length && <div className="empty-state">لا توجد نتائج مطابقة للبحث.</div>}
           </section>
           <aside className="pos-side-panel">
             <h2>مؤشرات اليوم</h2>
