@@ -79,8 +79,8 @@ export function TableManager() {
       <div className="table-grid qr-print-grid">
         {rows.map((table) => (
           <article className="table-card qr-print-card" key={table.id}>
-            <div><strong>طاولة {table.number}</strong><p>{table.seats} مقاعد</p>
-              <span className={"state-pill " + (table.status === "available" ? "active" : "inactive")}>
+            <div><strong className="table-number-label"><span>رقم الطاولة</span>{table.number}</strong><p>{table.seats} مقاعد</p>
+              <span className={"state-pill " + (table.status === "available" ? "active" : table.status === "occupied" ? "occupied" : "inactive")}>
                 {table.status === "available" ? "متاحة" : table.status === "occupied" ? "مشغولة" : "خارج الخدمة"}
               </span>
             </div>
