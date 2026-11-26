@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseBrowserClient } from "@restaurant/db/client";
+import { useRealtimeRefresh } from "@restaurant/realtime";
 import { formatMoney } from "@restaurant/i18n";
 import { Search, ShoppingBag, ClipboardList, UtensilsCrossed, Plus, Minus, X, WifiOff, ArrowLeft, Check, Store, MapPin, Phone, Clock, LayoutGrid, List, Sparkles, ChefHat, Flame, Banknote, CreditCard, RefreshCw, ChevronDown, ChevronUp, RotateCcw, CalendarDays, ReceiptText, CircleCheck, Timer, AlertCircle, Bell, BellRing, ShieldCheck, ScanLine } from "lucide-react";
 
@@ -81,7 +82,7 @@ async function loadJsQr(): Promise<JsQrDecoder> {
 
 function extractQrToken(value: string) {
   const raw = value.trim();
-  if (/^\\d{1,4}$/.test(raw)) return String(Number(raw));
+  if (/^\d{1,4}$/.test(raw)) return String(Number(raw));
   const uuid = raw.match(/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i)?.[0];
   if (uuid) return uuid;
   try {
@@ -94,6 +95,7 @@ function extractQrToken(value: string) {
 }
 export function CustomerOrder({ qr }: { qr: string }) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
+  const tableRevision = useRealtimeRefresh("restaurant_tables");
   const [tableNumber, setTableNumber] = useState<number | null>(null);
   const [tableChoices, setTableChoices] = useState<CustomerTable[]>([]);
   const [phone, setPhone] = useState("");
@@ -288,6 +290,25 @@ export function CustomerOrder({ qr }: { qr: string }) {
   }, []);
 
   useEffect(() => {
+    if (!customerId) {
+      setTableChoices([]);
+      return;
+    }
+    let active = true;
+    async function refreshTableChoices() {
+      const { data, error } = await supabase.rpc("list_customer_tables");
+      if (!active) return;
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+      setTableChoices((data ?? []) as CustomerTable[]);
+    }
+    void refreshTableChoices();
+    return () => { active = false; };
+  }, [customerId, tableRevision, supabase]);
+
+  useEffect(() => {
     let active = true;
     async function bootstrap() {
       if (!phone || !birthYear) {
@@ -326,10 +347,6 @@ export function CustomerOrder({ qr }: { qr: string }) {
         phone_e164: phoneToE164(phone),
       }, { onConflict: "user_id" });
       if (contactError) throw new Error("تعذر حفظ رقم الجوال بشكل آمن: " + contactError.message);
-
-      const { data: availableTables, error: tablesError } = await supabase.rpc("list_customer_tables");
-      if (tablesError) throw tablesError;
-      if (active) setTableChoices((availableTables ?? []) as CustomerTable[]);
 
       const selectedQr = scannedQr ?? extractQrToken(qr);
       if (!selectedQr) {
