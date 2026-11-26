@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSupabaseBrowserClient } from "@restaurant/db";
+import { getSupabaseBrowserClient } from "@restaurant/db/client";
 
 export function useRealtimeRefresh(table: string, filter?: string) {
   const [revision, setRevision] = useState(0);
