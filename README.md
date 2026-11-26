@@ -40,6 +40,8 @@ Monorepo عربي RTL لمنصة طلب من الطاولة لمطعم واحد�
 
 ## قاعدة البيانات
 
+- Migration سحب المنح الافتراضية: `supabase/migrations/20261126091713_revoke_default_api_table_grants.sql`.
+
 - Migration أمان RPC: `supabase/migrations/20261126085531_rpc_security_hardening.sql`
 
 - Migration: `supabase/migrations/20261126085311_initial_platform.sql`

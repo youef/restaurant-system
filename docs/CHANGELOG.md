@@ -23,3 +23,10 @@
 - Explicitly revoked direct RPC execution from `anon`; anonymous customers use the authenticated JWT created by Anonymous Sign-in.
 - Removed Supabase security advisor findings and added remaining foreign-key indexes.
 - Consolidated order read policies and wrapped `auth.uid()` in scalar subqueries for RLS efficiency.
+
+
+## 2026-11-26 — Default API grants hardening
+
+- Added migration `20261126091713_revoke_default_api_table_grants.sql` to explicitly revoke default table and sequence privileges for `anon` and `authenticated` before granting only the required reads and admin-managed writes.
+- Verified the live database denies direct order inserts and direct table updates while retaining menu and settings permissions behind RLS.
+- pgTAP now passes all 12 schema and permission checks.

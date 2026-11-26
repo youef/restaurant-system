@@ -17,3 +17,13 @@ All public application tables have Row Level Security enabled.
 | profiles | none | none | self | self | self | all |
 
 Sensitive writes are intentionally not granted on orders, order_items, payments, bill_requests, sessions or tables. The RPC functions validate role, ownership and state transitions inside Postgres.
+
+
+## SQL privileges in addition to RLS
+
+The migration explicitly revokes all table/sequence privileges from `anon` and `authenticated` in the `public` schema, then grants only:
+
+- Anonymous and authenticated read of settings, active catalogue rows (filtered by RLS).
+- Authenticated read of operational records, further filtered by each role's RLS policy.
+- Authenticated write privileges on catalogue tables and updates to settings/profiles; RLS limits those changes to admins.
+- No direct write grants on orders, order items, tables, sessions, bill requests, payments, or audit logs.

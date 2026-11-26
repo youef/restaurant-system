@@ -36,7 +36,7 @@ supabase db lint
 
 ملف الاختبار الأولي: `supabase/tests/platform_schema.test.sql`.
 
-- migrations المطابقة لقاعدة البيانات: `20261126085311_initial_platform.sql` و`20261126085531_rpc_security_hardening.sql`.
+- migrations المطابقة لقاعدة البيانات: `20261126085311_initial_platform.sql` و`20261126085531_rpc_security_hardening.sql` و`20261126091713_revoke_default_api_table_grants.sql`.
 - طبقة RPC العامة تستخدم `SECURITY INVOKER`، بينما تبقى عمليات الامتيازات في schema خاص غير مكشوف.
 
 ## 5. CI والنشر
