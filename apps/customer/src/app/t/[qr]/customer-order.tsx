@@ -431,6 +431,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
           user_id: authData.user.id,
           p256dh: json.keys.p256dh,
           auth_secret: json.keys.auth,
+          target_url: window.location.pathname,
           enabled: true,
         }, { onConflict: "endpoint" });
         if (error) throw error;
