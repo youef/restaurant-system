@@ -7,9 +7,9 @@ import { formatMoney, formatDateTime } from "@restaurant/i18n";
 
 type Table = { id: string; number: number; seats: number; status: string };
 type Session = { id: string; table_id: string; opened_at: string };
-type Order = { id: string; order_no: number; table_id: string; session_id: string; status: string; total: number; placed_at: string; payment_method: "cash" | "card" };
+type Order = { id: string; order_no: number; table_id: string; session_id: string; status: string; subtotal: number; vat_amount: number; total: number; placed_at: string; payment_method: "cash" | "card" };
 type Bill = { id: string; session_id: string; status: string; requested_at: string };
-type Item = { id: string; order_id: string; name_ar: string; quantity: number };
+type Item = { id: string; order_id: string; name_ar: string; quantity: number; unit_price: number; line_total: number; notes: string | null };
 
 export function WaiterBoard() {
   const [view, setView] = useState<"tasks" | "tables">("tasks");
@@ -23,6 +23,7 @@ export function WaiterBoard() {
   const [received, setReceived] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [refreshTick, setRefreshTick] = useState(0);
   const orderRevision = useRealtimeRefresh("orders");
   const billRevision = useRealtimeRefresh("bill_requests");
   const tableRevision = useRealtimeRefresh("restaurant_tables");
@@ -35,7 +36,7 @@ export function WaiterBoard() {
       const [tableResult, sessionResult, orderResult, billResult] = await Promise.all([
         db.from("restaurant_tables").select("id,number,seats,status").order("number"),
         db.from("table_sessions").select("id,table_id,opened_at").eq("status", "open"),
-        db.from("orders").select("id,order_no,table_id,session_id,status,total,placed_at,payment_method").neq("status", "paid"),
+        db.from("orders").select("id,order_no,table_id,session_id,status,subtotal,vat_amount,total,placed_at,payment_method").neq("status", "paid"),
         db.from("bill_requests").select("id,session_id,status,requested_at")
           .in("status", ["requested", "acknowledged"]).order("requested_at"),
       ]);
@@ -46,20 +47,23 @@ export function WaiterBoard() {
       if (billResult.error) setMessage(billResult.error.message); else setBills((billResult.data ?? []) as Bill[]);
       const ids = (orderResult.data ?? []).map((order) => order.id);
       if (ids.length) {
-        const { data, error } = await db.from("order_items").select("id,order_id,name_ar,quantity").in("order_id", ids);
+        const { data, error } = await db.from("order_items").select("id,order_id,name_ar,quantity,unit_price,line_total,notes").in("order_id", ids);
         if (active) { if (error) setMessage(error.message); else setItems((data ?? []) as Item[]); }
       } else if (active) setItems([]);
     }
     void load();
     return () => { active = false; };
-  }, [orderRevision, billRevision, tableRevision, sessionRevision]);
+  }, [orderRevision, billRevision, tableRevision, sessionRevision, refreshTick]);
 
   const tableNumbers = useMemo(() => new Map(tables.map((table) => [table.id, table.number])), [tables]);
   const sessionTable = useMemo(() => new Map(sessions.map((session) => [session.id, tableNumbers.get(session.table_id) ?? 0])), [sessions, tableNumbers]);
   const billSessions = new Set(bills.map((bill) => bill.session_id));
   const selectedOrders = selectedBill ? orders.filter((order) => order.session_id === selectedBill.session_id) : [];
-  const billTotal = selectedOrders.filter((order) => order.status !== "rejected").reduce((sum, order) => sum + Number(order.total), 0);
-  const canClose = selectedOrders.every((order) => order.status === "served" || order.status === "rejected");
+  const billableOrders = selectedOrders.filter((order) => order.status !== "rejected");
+  const billSubtotal = billableOrders.reduce((sum, order) => sum + Number(order.subtotal), 0);
+  const billVat = billableOrders.reduce((sum, order) => sum + Number(order.vat_amount), 0);
+  const billTotal = billableOrders.reduce((sum, order) => sum + Number(order.total), 0);
+  const canClose = selectedOrders.length > 0 && selectedOrders.every((order) => order.status === "served" || order.status === "rejected");
   const changeDue = Math.max(0, Number(received || 0) - billTotal);
 
   async function markServed(order: Order) {
@@ -108,6 +112,7 @@ export function WaiterBoard() {
       <nav className="waiter-tabs">
         <button aria-pressed={view === "tasks"} onClick={() => setView("tasks")}>المهام ({bills.length + orders.filter((order) => order.status === "ready").length})</button>
         <button aria-pressed={view === "tables"} onClick={() => setView("tables")}>الطاولات ({sessions.length})</button>
+        <button className="waiter-refresh" onClick={() => setRefreshTick((value) => value + 1)}>تحديث البيانات</button>
       </nav>
       {message && <p className="feedback" role="status">{message}</p>}
       {view === "tasks" ? (
@@ -143,12 +148,15 @@ export function WaiterBoard() {
           {tables.map((table) => {
             const session = sessions.find((row) => row.table_id === table.id);
             const hasBill = session ? billSessions.has(session.id) : false;
+            const tableOrders = session ? orders.filter((order) => order.session_id === session.id) : [];
+            const readyCount = tableOrders.filter((order) => order.status === "ready").length;
+            const openCount = tableOrders.filter((order) => !["served", "rejected", "paid"].includes(order.status)).length;
             return (
               <article className={"waiter-table-card table-" + table.status} key={table.id}>
                 <strong>طاولة {table.number}</strong><span>{table.seats} مقاعد</span>
                 <b>{table.status === "available" ? "متاحة" : table.status === "occupied" ? "مشغولة" : "خارج الخدمة"}</b>
                 {hasBill && <span className="bill-chip">طلب حساب</span>}
-                {session && <small>بدأت {formatDateTime(session.opened_at)}</small>}
+                {session && <><small>بدأت {formatDateTime(session.opened_at)}</small><small>جاهز للتقديم: {readyCount} · طلبات قيد التنفيذ: {openCount}</small></>}
               </article>
             );
           })}
@@ -161,7 +169,19 @@ export function WaiterBoard() {
             <header><span className="eyebrow">استلام الدفع</span><button className="close-button" onClick={() => setSelectedBill(null)}>إغلاق</button></header>
             <h2>طاولة {sessionTable.get(selectedBill.session_id) ?? "—"}</h2>
             <div className="payment-total"><span>المبلغ المطلوب</span><strong>{formatMoney(billTotal)}</strong></div>
-            {!canClose && <p className="feedback">يجب تقديم الطلبات الجاهزة أولاً قبل إغلاق الحساب.</p>}
+            <section className="waiter-invoice-lines">
+              <h3>تفاصيل الفاتورة</h3>
+              {selectedOrders.filter((order) => order.status !== "rejected").map((order) => (
+                <article key={order.id}>
+                  <strong>طلب #{order.order_no}</strong>
+                  {items.filter((item) => item.order_id === order.id).map((item) => <p key={item.id}>{item.name_ar} × {item.quantity} <span>{formatMoney(Number(item.line_total))}</span>{item.notes ? <small>{item.notes}</small> : null}</p>)}
+                </article>
+              ))}
+              <div><span>قبل الضريبة</span><b>{formatMoney(billSubtotal)}</b></div>
+              <div><span>ضريبة القيمة المضافة</span><b>{formatMoney(billVat)}</b></div>
+              <div className="waiter-invoice-grand"><span>الإجمالي شامل الضريبة</span><b>{formatMoney(billTotal)}</b></div>
+            </section>
+            {!canClose && <p className="feedback">{selectedOrders.length ? "يجب تقديم الطلبات الجاهزة أولاً قبل إغلاق الحساب." : "لا يمكن إغلاق جلسة لا تحتوي على طلبات."}</p>}
             <div className="payment-methods">
               <button aria-pressed={method === "cash"} onClick={() => setMethod("cash")}>نقد</button>
               <button aria-pressed={method === "card"} onClick={() => setMethod("card")}>شبكة</button>
