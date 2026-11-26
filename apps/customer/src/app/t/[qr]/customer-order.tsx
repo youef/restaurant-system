@@ -80,7 +80,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"menu" | "cart" | "orders">("menu");
   const [billRequest, setBillRequest] = useState<BillRequest | null>(null);
-  const [message, setMessage] = useState("جارٍ تجهيز طاولتك...");
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [online, setOnline] = useState(true);
@@ -463,7 +463,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
   }
 
   async function sendOrder() {
-    if (notificationPermission !== "granted") {
+    if (notificationPermission !== "granted" && notificationPermission !== "unsupported") {
       setMessage("فعّل إشعارات الطلب أولاً حتى نتمكن من تنبيهك عند تغيّر الحالة.");
       return;
     }
@@ -551,12 +551,14 @@ export function CustomerOrder({ qr }: { qr: string }) {
           <p>{notificationPermission === "granted"
             ? (pushReady ? "سيصلك إشعار عند تحديث حالة الطلب، حتى عند مغادرة الصفحة." : "تم السماح بالتنبيهات. دعم وصولها بعد إغلاق الصفحة يتطلب إعداد خدمة Push للمتجر.")
             : notificationPermission === "denied"
-              ? "الإشعارات محظورة من المتصفح. افتح إعدادات الموقع واسمح بها."
-              : "نحتاج إذنك لإشعارك عند اعتماد الطلب وجاهزيته."}</p>
+              ? "الإشعارات محظورة من المتصفح. افتح إعدادات الموقع واسمح بها ثم اضغط تحقق."
+              : notificationPermission === "unsupported"
+                ? "هذا المتصفح لا يدعم إشعارات الويب؛ ستبقى تحديثات الطلب داخل الصفحة."
+                : "نحتاج إذنك لإشعارك عند اعتماد الطلب وجاهزيته."}</p>
         </div>
         {notificationPermission !== "granted" && notificationPermission !== "unsupported" && (
-          <button type="button" onClick={() => void enableNotifications()} disabled={notificationsBusy}>
-            {notificationsBusy ? "جارٍ التفعيل..." : "تفعيل"}
+          <button type="button" onClick={() => notificationPermission === "denied" ? setNotificationPermission(Notification.permission) : void enableNotifications()} disabled={notificationsBusy}>
+            {notificationsBusy ? "جارٍ التفعيل..." : notificationPermission === "denied" ? "تحقق مجدداً" : "تفعيل"}
           </button>
         )}
       </section>
