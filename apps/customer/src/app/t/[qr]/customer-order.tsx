@@ -377,7 +377,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
                   </button>
                 ))}
               </div>
-              <div className="menu-grid">
+              <div className={`menu-grid ${productLayout === "list" ? "menu-list-view" : "menu-card-view"}`} data-layout={productLayout}>
                 {filteredProducts.map((product) => {
                   const img = imageUrl(product.image_path);
                   return (
