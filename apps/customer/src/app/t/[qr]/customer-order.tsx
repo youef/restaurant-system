@@ -17,7 +17,7 @@ type Order = {
   total: number; notes: string | null; rejected_reason: string | null; placed_at: string; payment_method: "cash" | "card";
 };
 type OrderItem = {
-  id: string; order_id: string; name_ar: string; quantity: number;
+  id: string; order_id: string; product_id: string; name_ar: string; unit_price: number; quantity: number;
   notes: string | null; line_total: number; station: string;
 };
 type CartLine = { quantity: number; notes: string };
@@ -50,7 +50,8 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [cart, setCart] = useState<Record<string, CartLine>>({});
   const [quote, setQuote] = useState<Quote | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");\n  const [orderFilter, setOrderFilter] = useState<"all" | "active" | "completed" | "rejected">("all");\n  const [expandedOrders, setExpandedOrders] = useState<string[]>([]);\n  const [refreshingOrders, setRefreshingOrders] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");
+  const [orderFilter, setOrderFilter] = useState<"all" | "active" | "completed" | "rejected">("all");\n  const [expandedOrders, setExpandedOrders] = useState<string[]>([]);\n  const [refreshingOrders, setRefreshingOrders] = useState(false);
   const [activeCategory, setActiveCategory] = useState("all");
   const [productLayout, setProductLayout] = useState<"grid" | "list">("grid");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
