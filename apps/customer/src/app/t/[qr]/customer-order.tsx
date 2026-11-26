@@ -604,7 +604,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
               )}
               {billRequest?.status === "requested" && <p className="bill-status"><Check size={16}/> تم إرسال طلب الحساب. النادل في الطريق إليك.</p>}
               {billRequest?.status === "acknowledged" && <p className="bill-status"><Check size={16}/> اطّلع النادل على طلب الحساب، وسيأتي إليك قريباً.</p>}
-              <button className="bill-button orders-bill-button" disabled={busy || !!billRequest || !online || !orders.length || sessionStatus === "closed"} onClick={() => void requestBill()}>{billRequest ? <><Check size={18}/> تم طلب الحساب</> : <>اطلب النادل للدفع <ArrowLeft size={17}/></>}</button>
+              <button className="bill-button orders-bill-button" disabled={busy || !!billRequest || !online || !orders.length} onClick={() => void requestBill()}>{billRequest ? <><Check size={18}/> تم طلب الحساب</> : <>اطلب النادل للدفع <ArrowLeft size={17}/></>}</button>
             </section>
           )}
         </>
