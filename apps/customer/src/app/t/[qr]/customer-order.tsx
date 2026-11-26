@@ -12,7 +12,7 @@ type Product = {
 };
 type Order = {
   id: string; order_no: number; status: string; subtotal: number; vat_amount: number;
-  total: number; notes: string | null; placed_at: string;
+  total: number; notes: string | null; rejected_reason: string | null; placed_at: string;
 };
 type OrderItem = {
   id: string; order_id: string; name_ar: string; quantity: number;
@@ -60,7 +60,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const refreshSession = useCallback(async (id: string) => {
     const [orderResult, sessionResult, billResult] = await Promise.all([
       supabase.from("orders")
-        .select("id,order_no,status,subtotal,vat_amount,total,notes,placed_at")
+        .select("id,order_no,status,subtotal,vat_amount,total,notes,rejected_reason,placed_at")
         .eq("session_id", id)
         .order("placed_at", { ascending: false }),
       supabase.from("table_sessions").select("status").eq("id", id).maybeSingle(),

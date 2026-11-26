@@ -36,11 +36,11 @@ supabase db lint
 
 ملف الاختبار الأولي: `supabase/tests/platform_schema.test.sql`.
 
-- migrations المطابقة لقاعدة البيانات: `20261126085311_initial_platform.sql` و`20261126085531_rpc_security_hardening.sql` و`20261126091713_revoke_default_api_table_grants.sql`.
+- migrations المطابقة لقاعدة البيانات: `20261126085311_initial_platform.sql` و`20261126085531_rpc_security_hardening.sql` و`20261126091713_revoke_default_api_table_grants.sql` و`20261126091804_harden_write_grants.sql` و`20261126092801_anonymous_role_isolation.sql` و`20261126100224_customer_price_preview_and_receipt_access.sql`.
 - طبقة RPC العامة تستخدم `SECURITY INVOKER`، بينما تبقى عمليات الامتيازات في schema خاص غير مكشوف.
 
 ## 5. CI والنشر
 
 يستخدم CLI v3 الخيارين `--remote --yes` للنشر المستضاف من CI. عيّن `SUPABASE_ACCESS_TOKEN` و`SUPABASE_DB_PASSWORD` كـ GitHub Secrets. عيّن `NEXT_PUBLIC_SUPABASE_URL` و`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` لكل تطبيق في Vercel.
 
-لا تُنشئ حساب مدير بكلمة مرور ثابتة داخل seed. أنشئ أول مدير باستخدام مسار إدارة موثوق واحتفظ ببياناته خارج المستودع.
+لا توجد كلمات مرور أو حسابات تجريبية. لإنشاء المدير الأول: أنشئ حساب المالك من Authentication > Users، ثم استبدل البريد في `supabase/bootstrap-first-admin.sql` وشغّله مرة واحدة من SQL Editor. بعدها تُرسل دعوات الموظفين من وحدة الموظفين بواسطة Edge Function `manage-staff`. فعّل Anonymous Sign-ins لتشغيل QR للعميل.

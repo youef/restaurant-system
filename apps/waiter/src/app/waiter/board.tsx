@@ -35,7 +35,7 @@ export function WaiterBoard() {
       const [tableResult, sessionResult, orderResult, billResult] = await Promise.all([
         db.from("restaurant_tables").select("id,number,seats,status").order("number"),
         db.from("table_sessions").select("id,table_id,opened_at").eq("status", "open"),
-        db.from("orders").select("id,order_no,table_id,session_id,status,total,placed_at").in("status", ["ready"]),
+        db.from("orders").select("id,order_no,table_id,session_id,status,total,placed_at").neq("status", "paid"),
         db.from("bill_requests").select("id,session_id,status,requested_at")
           .in("status", ["requested", "acknowledged"]).order("requested_at"),
       ]);
@@ -57,9 +57,9 @@ export function WaiterBoard() {
   const tableNumbers = useMemo(() => new Map(tables.map((table) => [table.id, table.number])), [tables]);
   const sessionTable = useMemo(() => new Map(sessions.map((session) => [session.id, tableNumbers.get(session.table_id) ?? 0])), [sessions, tableNumbers]);
   const billSessions = new Set(bills.map((bill) => bill.session_id));
-  const billTotal = selectedBill
-    ? orders.filter((order) => order.session_id === selectedBill.session_id).reduce((sum, order) => sum + Number(order.total), 0)
-    : 0;
+  const selectedOrders = selectedBill ? orders.filter((order) => order.session_id === selectedBill.session_id) : [];
+  const billTotal = selectedOrders.filter((order) => order.status !== "rejected").reduce((sum, order) => sum + Number(order.total), 0);
+  const canClose = selectedOrders.every((order) => order.status === "served" || order.status === "rejected");
   const changeDue = Math.max(0, Number(received || 0) - billTotal);
 
   async function markServed(order: Order) {
@@ -69,7 +69,7 @@ export function WaiterBoard() {
     });
     setBusy(false);
     if (error) setMessage(error.message);
-    else setOrders((current) => current.filter((item) => item.id !== order.id));
+    else setOrders((current) => current.map((item) => item.id === order.id ? { ...item, status: "served" } : item));
   }
 
   async function acknowledge(bill: Bill) {
@@ -82,6 +82,7 @@ export function WaiterBoard() {
 
   async function closePayment() {
     if (!selectedBill || busy) return;
+    if (!canClose) { setMessage("لا يمكن إغلاق الحساب قبل تقديم أو رفض جميع الطلبات."); return; }
     if (method === "cash" && Number(received) < billTotal) {
       setMessage("المبلغ المستلم أقل من إجمالي الحساب.");
       return;
@@ -105,7 +106,7 @@ export function WaiterBoard() {
   return (
     <section className="waiter-app" dir="rtl">
       <nav className="waiter-tabs">
-        <button aria-pressed={view === "tasks"} onClick={() => setView("tasks")}>المهام ({bills.length + orders.length})</button>
+        <button aria-pressed={view === "tasks"} onClick={() => setView("tasks")}>المهام ({bills.length + orders.filter((order) => order.status === "ready").length})</button>
         <button aria-pressed={view === "tables"} onClick={() => setView("tables")}>الطاولات ({sessions.length})</button>
       </nav>
       {message && <p className="feedback" role="status">{message}</p>}
@@ -125,8 +126,8 @@ export function WaiterBoard() {
             {!bills.length && <div className="empty-state">لا توجد طلبات حساب الآن.</div>}
           </section>
           <section className="queue-panel">
-            <div className="section-title"><h2>جاهز للتقديم</h2><span>{orders.length}</span></div>
-            {orders.map((order) => (
+            <div className="section-title"><h2>جاهز للتقديم</h2><span>{orders.filter((order) => order.status === "ready").length}</span></div>
+            {orders.filter((order) => order.status === "ready").map((order) => (
               <article className="waiter-task-card" key={order.id}>
                 <div><strong>طلب #{order.order_no} · طاولة {tableNumbers.get(order.table_id) ?? "—"}</strong><p>{formatMoney(Number(order.total))}</p>
                   <ul>{items.filter((item) => item.order_id === order.id).map((item) => <li key={item.id}>{item.name_ar} × {item.quantity}</li>)}</ul>
@@ -134,7 +135,7 @@ export function WaiterBoard() {
                 <button className="action-button" disabled={busy} onClick={() => void markServed(order)}>تم التقديم</button>
               </article>
             ))}
-            {!orders.length && <div className="empty-state">لا توجد طلبات جاهزة للتقديم.</div>}
+            {!orders.some((order) => order.status === "ready") && <div className="empty-state">لا توجد طلبات جاهزة للتقديم.</div>}
           </section>
         </div>
       ) : (
@@ -160,6 +161,7 @@ export function WaiterBoard() {
             <header><span className="eyebrow">استلام الدفع</span><button className="close-button" onClick={() => setSelectedBill(null)}>إغلاق</button></header>
             <h2>طاولة {sessionTable.get(selectedBill.session_id) ?? "—"}</h2>
             <div className="payment-total"><span>المبلغ المطلوب</span><strong>{formatMoney(billTotal)}</strong></div>
+            {!canClose && <p className="feedback">يجب تقديم الطلبات الجاهزة أولاً قبل إغلاق الحساب.</p>}
             <div className="payment-methods">
               <button aria-pressed={method === "cash"} onClick={() => setMethod("cash")}>نقد</button>
               <button aria-pressed={method === "card"} onClick={() => setMethod("card")}>شبكة</button>
@@ -172,7 +174,7 @@ export function WaiterBoard() {
                 <div className="payment-change"><span>الباقي للعميل</span><strong>{formatMoney(changeDue)}</strong></div>
               </>
             )}
-            <button className="action-button payment-confirm" disabled={busy || (method === "cash" && Number(received) < billTotal)} onClick={() => void closePayment()}>
+            <button className="action-button payment-confirm" disabled={busy || !canClose || (method === "cash" && Number(received) < billTotal)} onClick={() => void closePayment()}>
               {busy ? "جارٍ الإغلاق..." : "تأكيد الدفع وإغلاق الحساب"}
             </button>
           </section>
