@@ -696,9 +696,12 @@ export function CustomerOrder({ qr }: { qr: string }) {
     setMessage("جارٍ التحقق من بياناتك وتجهيز الطاولة...");
   }
 
-  async function recordLogoutAndSignOut() {
+  async function recordLogoutAndSignOut(alreadyClosed = false) {
     if (busy) return;
-    if (!window.confirm("هل تريد تسجيل الخروج؟ سيبقى حساب الطاولة مفتوحاً حتى يُغلقه الموظف بعد التسوية.")) return;
+    const confirmation = alreadyClosed
+      ? "تم إغلاق الزيارة نهائياً. هل تريد تسجيل الخروج والعودة إلى شاشة البداية؟"
+      : "هل تريد تسجيل الخروج؟ سيبقى حساب الطاولة مفتوحاً حتى يُغلقه الموظف بعد التسوية.";
+    if (!window.confirm(confirmation)) return;
     setBusy(true);
     const { error } = await supabase.rpc("record_customer_logout", { p_session_id: sessionId });
     if (error) {
@@ -713,7 +716,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
   }
 
   function resetClosedVisit() {
-    void recordLogoutAndSignOut();
+    void recordLogoutAndSignOut(true);
   }
 
   async function requestCustomerExit() {
