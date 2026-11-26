@@ -140,6 +140,38 @@ export function CustomerOrder({ qr }: { qr: string }) {
   }, [qr, refreshSession, supabase]);
 
   useEffect(() => {
+    // Disable pinch/double-tap zoom, selection, clipboard actions and native context menus.
+    const prevent = (event: Event) => event.preventDefault();
+    const preventClipboard = (event: ClipboardEvent) => event.preventDefault();
+    const preventZoomKeys = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      if ((event.ctrlKey || event.metaKey) && ["+", "=", "-", "0", "c", "x", "v"].includes(key)) event.preventDefault();
+    };
+    document.addEventListener("contextmenu", prevent, true);
+    document.addEventListener("selectstart", prevent, true);
+    document.addEventListener("dragstart", prevent, true);
+    document.addEventListener("copy", preventClipboard, true);
+    document.addEventListener("cut", preventClipboard, true);
+    document.addEventListener("paste", preventClipboard, true);
+    document.addEventListener("keydown", preventZoomKeys, true);
+    document.addEventListener("gesturestart", prevent, { capture: true, passive: false });
+    document.addEventListener("gesturechange", prevent, { capture: true, passive: false });
+    document.addEventListener("gestureend", prevent, { capture: true, passive: false });
+    return () => {
+      document.removeEventListener("contextmenu", prevent, true);
+      document.removeEventListener("selectstart", prevent, true);
+      document.removeEventListener("dragstart", prevent, true);
+      document.removeEventListener("copy", preventClipboard, true);
+      document.removeEventListener("cut", preventClipboard, true);
+      document.removeEventListener("paste", preventClipboard, true);
+      document.removeEventListener("keydown", preventZoomKeys, true);
+      document.removeEventListener("gesturestart", prevent, true);
+      document.removeEventListener("gesturechange", prevent, true);
+      document.removeEventListener("gestureend", prevent, true);
+    };
+  }, []);
+
+  useEffect(() => {
     const handleOnline = () => setOnline(true);
     const handleOffline = () => setOnline(false);
     setOnline(navigator.onLine);
