@@ -707,3 +707,32 @@ button{touch-action:manipulation;cursor:pointer}
  .order-progress-step span{font-size:.55rem}
  .order-card-meta{gap:8px 10px;font-size:.67rem}
 }
+
+
+/* Keep the customer page locked to the viewport horizontally.
+   Intentional horizontal scrollers (categories and order progress) remain usable. */
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+}
+body {
+  position: relative;
+}
+.customer-app {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+.category-strip,
+.order-stepper {
+  max-width: 100%;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+}
+.product-detail-backdrop {
+  max-width: 100vw;
+  overscroll-behavior-x: none;
+}
