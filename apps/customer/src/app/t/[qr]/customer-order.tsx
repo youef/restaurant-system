@@ -13,7 +13,7 @@ type Product = {
   is_available: boolean; is_featured: boolean; sort_order: number; station: string | null;
 };
 type Order = {
-  id: string; order_no: number; status: string; subtotal: number; vat_amount: number;
+  id: string; session_id: string; order_no: number; status: string; subtotal: number; vat_amount: number;
   total: number; notes: string | null; rejected_reason: string | null; placed_at: string; payment_method: "cash" | "card";
 };
 type OrderItem = {
@@ -56,6 +56,9 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const [tableNumber, setTableNumber] = useState<number | null>(null);
   const [phone, setPhone] = useState("");
   const [phoneInput, setPhoneInput] = useState("");
+  const [birthYear, setBirthYear] = useState("");
+  const [birthYearInput, setBirthYearInput] = useState("");
+  const [customerId, setCustomerId] = useState<string | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">("default");
   const [notificationsBusy, setNotificationsBusy] = useState(false);
   const [pushReady, setPushReady] = useState(false);
@@ -85,11 +88,11 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const [busy, setBusy] = useState(false);
   const [online, setOnline] = useState(true);
 
-  const refreshSession = useCallback(async (id: string) => {
+  const refreshSession = useCallback(async (id: string, profileId: string) => {
     const [orderResult, sessionResult, billResult] = await Promise.all([
       supabase.from("orders")
-        .select("id,order_no,status,subtotal,vat_amount,total,notes,rejected_reason,placed_at,payment_method")
-        .eq("session_id", id)
+        .select("id,session_id,order_no,status,subtotal,vat_amount,total,notes,rejected_reason,placed_at,payment_method")
+        .eq("customer_id", profileId)
         .order("placed_at", { ascending: false }),
       supabase.from("table_sessions").select("status").eq("id", id).maybeSingle(),
       supabase.from("bill_requests").select("id,status").eq("session_id", id)
@@ -115,9 +118,12 @@ export function CustomerOrder({ qr }: { qr: string }) {
 
   useEffect(() => {
     const savedPhone = window.sessionStorage.getItem("customer-visit-phone");
-    if (savedPhone) {
+    const savedBirthYear = window.sessionStorage.getItem("customer-visit-birth-year");
+    if (savedPhone) setPhoneInput(savedPhone);
+    if (savedBirthYear) setBirthYearInput(savedBirthYear);
+    if (savedPhone && savedBirthYear) {
       setPhone(savedPhone);
-      setPhoneInput(savedPhone);
+      setBirthYear(savedBirthYear);
     }
   }, []);
 
@@ -132,7 +138,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
   useEffect(() => {
     let active = true;
     async function bootstrap() {
-      if (!phone) {
+      if (!phone || !birthYear) {
         setLoading(false);
         return;
       }
@@ -146,6 +152,23 @@ export function CustomerOrder({ qr }: { qr: string }) {
         guestUser = signInData.user;
       }
       if (!guestUser) throw new Error("تعذر إنشاء جلسة العميل.");
+      const { data: claimData, error: claimError } = await supabase.rpc("claim_customer_profile", {
+        p_phone_e164: phoneToE164(phone),
+        p_birth_year_hijri: Number(birthYear),
+      });
+      if (claimError) throw claimError;
+      const claim = Array.isArray(claimData) ? claimData[0] : claimData;
+      if (!claim?.verified || !claim.customer_id) {
+        const reason = claim?.error_code === "temporarily_locked"
+          ? "تم إيقاف المحاولة مؤقتاً لكثرة المحاولات. حاول بعد 15 دقيقة."
+          : claim?.error_code === "identity_mismatch"
+            ? "سنة الميلاد غير مطابقة لهذا الرقم. راجع السنة وحاول مرة أخرى."
+            : "تأكد من رقم الجوال وسنة الميلاد الهجرية.";
+        throw new Error(reason);
+      }
+      const profileId = claim.customer_id as string;
+      if (active) setCustomerId(profileId);
+
       const { error: contactError } = await supabase.from("customer_contacts").upsert({
         user_id: guestUser.id,
         phone_e164: phoneToE164(phone),
@@ -180,17 +203,26 @@ export function CustomerOrder({ qr }: { qr: string }) {
         setRestaurant((settingsResult.data ?? null) as RestaurantSettings | null);
         setMessage("");
       }
-      await refreshSession(id);
+      await refreshSession(id, profileId);
     }
 
     void bootstrap().catch((error: unknown) => {
-      if (active) setMessage(error instanceof Error ? error.message : "تعذر تحميل القائمة.");
+      if (active) {
+        const errorMessage = error instanceof Error ? error.message : "تعذر تحميل القائمة.";
+        setMessage(errorMessage);
+        if (errorMessage.includes("سنة الميلاد") || errorMessage.includes("المحاولة مؤقتاً")) {
+          setPhone("");
+          setCustomerId(null);
+          window.sessionStorage.removeItem("customer-visit-phone");
+          window.sessionStorage.removeItem("customer-visit-birth-year");
+        }
+      }
     }).finally(() => {
       if (active) setLoading(false);
     });
 
     return () => { active = false; };
-  }, [phone, qr, refreshSession, supabase]);
+  }, [phone, birthYear, qr, refreshSession, supabase]);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("customer-product-layout");
@@ -295,10 +327,10 @@ export function CustomerOrder({ qr }: { qr: string }) {
   }, [orders]);
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || !customerId) return;
     let active = true;
     const refresh = () => {
-      void refreshSession(sessionId).catch(() => {
+      void refreshSession(sessionId, customerId).catch(() => {
         if (active) setMessage("لا يوجد اتصال، جارٍ إعادة المحاولة.");
       });
     };
@@ -313,7 +345,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
       active = false;
       void supabase.removeChannel(channel);
     };
-  }, [refreshSession, sessionId, supabase]);
+  }, [customerId, refreshSession, sessionId, supabase]);
 
   const cartItems = useMemo(() => Object.entries(cart).map(([product_id, line]) => ({
     product_id,
@@ -446,19 +478,29 @@ export function CustomerOrder({ qr }: { qr: string }) {
 
   function startVisit() {
     const normalized = phoneToE164(phoneInput);
+    const hijriYear = Number(birthYearInput);
     if (!normalized) {
       setMessage("أدخل رقم جوال سعودي صحيحاً، مثل 05XXXXXXXX.");
       return;
     }
+    if (!Number.isInteger(hijriYear) || hijriYear < 1300 || hijriYear > 1500) {
+      setMessage("أدخل سنة ميلاد هجرية صحيحة (من 1300 إلى 1500).");
+      return;
+    }
+    const normalizedYear = String(hijriYear);
     window.sessionStorage.setItem("customer-visit-phone", normalized);
+    window.sessionStorage.setItem("customer-visit-birth-year", normalizedYear);
     setPhone(normalized);
     setPhoneInput(normalized);
+    setBirthYear(normalizedYear);
+    setBirthYearInput(normalizedYear);
     setLoading(true);
-    setMessage("جارٍ تجهيز طاولتك...");
+    setMessage("جارٍ التحقق من بياناتك وتجهيز الطاولة...");
   }
 
   function resetClosedVisit() {
     window.sessionStorage.removeItem("customer-visit-phone");
+    window.sessionStorage.removeItem("customer-visit-birth-year");
     void supabase.auth.signOut().finally(() => window.location.reload());
   }
 
@@ -485,7 +527,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
     setCart({});
     setView("orders");
     setMessage(row?.order_no ? "تم إرسال طلبك رقم #" + row.order_no : "تم إرسال الطلب بنجاح.");
-    await refreshSession(sessionId);
+    if (customerId) await refreshSession(sessionId, customerId);
   }
 
   async function requestBill() {
@@ -496,7 +538,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
     if (error) setMessage(error.message);
     else {
       setMessage("تم طلب الحساب. النادل في الطريق إليك.");
-      await refreshSession(sessionId);
+      if (customerId) await refreshSession(sessionId, customerId);
     }
   }
 
@@ -505,14 +547,16 @@ export function CustomerOrder({ qr }: { qr: string }) {
       <main className="customer-landing customer-onboarding" dir="rtl">
         <span className="eyebrow">أهلاً بك في مطعمك</span>
         <h1>ابدأ زيارتك<br/><em>من هنا.</em></h1>
-        <p>أدخل رقم جوالك لربط طلبات هذه الزيارة بطاولتك ومتابعة حالة الطلب.</p>
+        <p>أدخل رقم جوالك وسنة ميلادك الهجرية لربط طلباتك وفواتيرك بكل زياراتك، حتى لو جلست على طاولة مختلفة.</p>
         <form className="customer-phone-form" onSubmit={(event) => { event.preventDefault(); startVisit(); }}>
           <label htmlFor="customer-phone">رقم الجوال</label>
           <input id="customer-phone" inputMode="tel" autoComplete="tel" dir="ltr" placeholder="05XXXXXXXX" value={phoneInput} onChange={(event) => setPhoneInput(event.target.value)} maxLength={16}/>
+          <label htmlFor="customer-hijri-year">سنة الميلاد بالهجري</label>
+          <input id="customer-hijri-year" inputMode="numeric" type="number" min="1300" max="1500" placeholder="مثال: 1410" value={birthYearInput} onChange={(event) => setBirthYearInput(event.target.value)} />
           {message && <p className="customer-onboarding-error" role="alert">{message}</p>}
           <button className="action-button" type="submit">متابعة إلى القائمة <ArrowLeft size={17}/></button>
         </form>
-        <small className="customer-privacy-note"><ShieldCheck size={15}/> رقمك يستخدم لربط الزيارة الحالية فقط. لا نعرض سجل أشخاص آخرين بمجرد إدخال رقم جوال.</small>
+        <small className="customer-privacy-note"><ShieldCheck size={15}/> لا نرسل رسائل نصية. نستخدم سنة الميلاد للتحقق الإضافي، وتبقى فواتيرك وطلباتك مرتبطة بملفك لا بالطاولة.</small>
       </main>
     );
   }
@@ -745,9 +789,9 @@ export function CustomerOrder({ qr }: { qr: string }) {
               <header className="orders-hero">
                 <div><span className="eyebrow">تجربتك معنا</span><h2>طلباتي</h2><p>تابع طلباتك، راجع تفاصيلها، وأعد طلب ما تحب بسهولة.</p></div>
                 <button type="button" className="orders-refresh" disabled={refreshingOrders || !online} onClick={async () => {
-                  if (!sessionId) return;
+                  if (!sessionId || !customerId) return;
                   setRefreshingOrders(true);
-                  try { await refreshSession(sessionId); } finally { setRefreshingOrders(false); }
+                  try { await refreshSession(sessionId, customerId); } finally { setRefreshingOrders(false); }
                 }} aria-label="تحديث الطلبات"><RefreshCw size={18} className={refreshingOrders ? "spin" : ""}/></button>
               </header>
               <div className="orders-overview">
@@ -814,7 +858,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
               )}
               {billRequest?.status === "requested" && <p className="bill-status"><Check size={16}/> تم إرسال طلب الحساب. النادل في الطريق إليك.</p>}
               {billRequest?.status === "acknowledged" && <p className="bill-status"><Check size={16}/> اطّلع النادل على طلب الحساب، وسيأتي إليك قريباً.</p>}
-              <button className="bill-button orders-bill-button" disabled={busy || !!billRequest || !online || !orders.length} onClick={() => void requestBill()}>{billRequest ? <><Check size={18}/> تم طلب الحساب</> : <>اطلب النادل للدفع <ArrowLeft size={17}/></>}</button>
+              <button className="bill-button orders-bill-button" disabled={busy || !!billRequest || !online || !orders.some((order) => order.session_id === sessionId)} onClick={() => void requestBill()}>{billRequest ? <><Check size={18}/> تم طلب الحساب</> : <>اطلب النادل للدفع <ArrowLeft size={17}/></>}</button>
             </section>
           )}
         </>
