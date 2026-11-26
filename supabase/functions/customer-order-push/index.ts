@@ -51,7 +51,7 @@ Deno.serve(async (request: Request) => {
   const supabase = createClient(supabaseUrl, apiKey, { auth: { persistSession: false } });
   const { data: subscriptions, error } = await supabase
     .from("customer_push_subscriptions")
-    .select("endpoint,p256dh,auth_secret")
+    .select("endpoint,p256dh,auth_secret,target_url")
     .eq("user_id", payload.record.placed_by)
     .eq("enabled", true);
   if (error) return new Response("Could not load subscriptions", { status: 500 });
@@ -61,7 +61,7 @@ Deno.serve(async (request: Request) => {
     title: "تحديث الطلب #" + payload.record.order_no,
     body: statusText[payload.record.status] ?? "يوجد تحديث جديد على طلبك",
     tag: "order-" + payload.record.id,
-    url: "/",
+    url: subscriptions?.[0]?.target_url ?? "/",
   });
   const results = await Promise.allSettled((subscriptions ?? []).map(async (subscription) => {
     try {
