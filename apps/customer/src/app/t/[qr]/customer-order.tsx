@@ -431,36 +431,75 @@ export function CustomerOrder({ qr }: { qr: string }) {
 
           {view === "cart" && (
             <section className="cart-sheet">
-              <div className="page-heading"><span className="eyebrow">راجع اختياراتك</span><h2>سلة الطلب</h2><p>{cartCount} قطعة في سلتك</p></div>
-              {cartItems.length === 0 ? <div className="empty-state"><p>السلة فارغة حالياً.</p><button className="action-button" onClick={() => setView("menu")}>تصفح القائمة</button></div> : (
+              <header className="cart-hero">
+                <div className="cart-hero-copy">
+                  <span className="eyebrow">خطوة أخيرة قبل الاستمتاع</span>
+                  <h2>سلة طلبك</h2>
+                  <p>راجع اختياراتك وتأكد من تفاصيل طلبك</p>
+                </div>
+                <div className="cart-hero-icon"><ShoppingBag size={27}/><span>{cartCount}</span></div>
+              </header>
+              {cartItems.length === 0 ? (
+                <div className="cart-empty-state">
+                  <div className="cart-empty-icon"><ShoppingBag size={35}/></div>
+                  <h3>سلتك تنتظر اختياراتك</h3>
+                  <p>أضف أطباقك المفضلة من القائمة، وستظهر هنا لتراجعها قبل الإرسال.</p>
+                  <button className="cart-continue-button" onClick={() => setView("menu")}><ArrowLeft size={17}/> استكشف القائمة</button>
+                </div>
+              ) : (
                 <>
+                  <div className="cart-section-heading">
+                    <div><span className="eyebrow">اختياراتك</span><h3>تفاصيل الأصناف <small>{cartItems.length} أصناف</small></h3></div>
+                    <button type="button" className="cart-continue-link" onClick={() => setView("menu")}>إضافة المزيد <Plus size={16}/></button>
+                  </div>
                   <div className="cart-lines">
                     {cartItems.map((line) => {
                       const product = products.find((item) => item.id === line.product_id);
                       if (!product) return null;
+                      const image = imageUrl(product.image_path);
                       return (
                         <article className="cart-line" key={line.product_id}>
-                          <div className="cart-line-heading"><strong>{product.name_ar}</strong><span>{formatMoney(Number(product.price))}</span></div>
-                          <div className="quantity-controls">
-                            <button aria-label="زيادة الكمية" onClick={() => changeQuantity(line.product_id, 1)}><Plus size={17}/></button>
-                            <strong>{line.quantity}</strong>
-                            <button aria-label="تقليل الكمية" onClick={() => changeQuantity(line.product_id, -1)}><Minus size={17}/></button>
+                          <div className="cart-line-main">
+                            <div className="cart-product-thumb">
+                              {image ? <img src={image} alt={product.name_ar}/> : <UtensilsCrossed size={23}/>}
+                            </div>
+                            <div className="cart-product-info">
+                              <strong>{product.name_ar}</strong>
+                              <span>{formatMoney(Number(product.price))} <small>للوحدة</small></span>
+                            </div>
+                            <strong className="cart-line-total">{formatMoney(Number(product.price) * line.quantity)}</strong>
                           </div>
-                          <label className="item-note">ملاحظة للصنف
-                            <input value={line.notes ?? ""} onChange={(event) => changeNotes(line.product_id, event.target.value)} placeholder="بدون بصل، زيادة صوص..." maxLength={250} />
-                          </label>
+                          <div className="cart-line-controls">
+                            <label className="item-note"><span>ملاحظات التحضير</span>
+                              <input value={line.notes ?? ""} onChange={(event) => changeNotes(line.product_id, event.target.value)} placeholder="مثلاً: بدون بصل، الصوص على الجانب..." maxLength={250}/>
+                            </label>
+                            <div className="quantity-controls" aria-label="تعديل الكمية">
+                              <button aria-label="زيادة الكمية" onClick={() => changeQuantity(line.product_id, 1)}><Plus size={16}/></button>
+                              <strong>{line.quantity}</strong>
+                              <button aria-label="تقليل الكمية" onClick={() => changeQuantity(line.product_id, -1)}><Minus size={16}/></button>
+                            </div>
+                          </div>
                         </article>
                       );
                     })}
                   </div>
-                  <div className="quote-summary">
-                    <div><span>المجموع قبل الضريبة</span><strong>{quote ? formatMoney(quote.subtotal) : "—"}</strong></div>
-                    <div><span>ضريبة القيمة المضافة</span><strong>{quote ? formatMoney(quote.vat_amount) : "—"}</strong></div>
-                    <div className="quote-total"><span>الإجمالي</span><strong>{quote ? formatMoney(quote.total) : "جارٍ التسعير..."}</strong></div>
+                  <section className="cart-summary-card">
+                    <div className="cart-summary-heading"><div><span className="eyebrow">ملخص الدفع</span><h3>تفاصيل الفاتورة</h3></div><span className="cart-secure-label"><Check size={13}/> تسعير دقيق</span></div>
+                    <div className="quote-summary">
+                      <div><span>المجموع الفرعي</span><strong>{quote ? formatMoney(quote.subtotal) : "—"}</strong></div>
+                      <div><span>ضريبة القيمة المضافة</span><strong>{quote ? formatMoney(quote.vat_amount) : "—"}</strong></div>
+                      <div className="quote-total"><span>الإجمالي شامل الضريبة</span><strong>{quote ? formatMoney(quote.total) : "جارٍ احتساب الإجمالي..."}</strong></div>
+                    </div>
+                    <p className="cart-summary-footnote">يتم احتساب الإجمالي والضريبة تلقائياً وفق أسعار المطعم.</p>
+                  </section>
+                  <div className="cart-checkout-area">
+                    <div className="cart-checkout-total"><span>الإجمالي المستحق</span><strong>{quote ? formatMoney(quote.total) : "—"}</strong></div>
+                    <button className="action-button send-order" disabled={!quote || busy || !online} onClick={() => void sendOrder()}>
+                      {busy ? "جارٍ إرسال طلبك..." : <><ShoppingBag size={19}/> تأكيد الطلب وإرساله <ArrowLeft size={17}/></>}
+                    </button>
+                    {!online && <p className="cart-checkout-hint">تحقق من اتصال الإنترنت لإرسال طلبك.</p>}
+                    {online && !quote && <p className="cart-checkout-hint">جارٍ تحديث الأسعار وحساب الضريبة...</p>}
                   </div>
-                  <button className="action-button send-order" disabled={!quote || busy || !online} onClick={() => void sendOrder()}>
-                    {busy ? "جارٍ الإرسال..." : <><ShoppingBag size={19}/> تأكيد وإرسال الطلب</>}
-                  </button>
                 </>
               )}
             </section>
