@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabaseBrowserClient } from "@restaurant/db/client";
 import { formatMoney } from "@restaurant/i18n";
-import { Search, ShoppingBag, ClipboardList, UtensilsCrossed, Plus, Minus, X, WifiOff, ArrowLeft, Check, Store, MapPin, Phone, Clock } from "lucide-react";
+import { Search, ShoppingBag, ClipboardList, UtensilsCrossed, Plus, Minus, X, WifiOff, ArrowLeft, Check, Store, MapPin, Phone, Clock, LayoutGrid, List } from "lucide-react";
 
 type Category = { id: string; name_ar: string; name_en: string | null; sort_order: number };
 type RestaurantSettings = { restaurant_name_ar: string; restaurant_name_en: string | null; logo_path: string | null; phone: string | null; address: string | null; opening_hours: Record<string, unknown> | null };
@@ -51,6 +51,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const [cart, setCart] = useState<Record<string, CartLine>>({});
   const [quote, setQuote] = useState<Quote | null>(null);
   const [activeCategory, setActiveCategory] = useState("all");
+  const [productLayout, setProductLayout] = useState<"grid" | "list">("grid");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"menu" | "cart" | "orders">("menu");
@@ -138,6 +139,16 @@ export function CustomerOrder({ qr }: { qr: string }) {
 
     return () => { active = false; };
   }, [qr, refreshSession, supabase]);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("customer-product-layout");
+    if (saved === "grid" || saved === "list") setProductLayout(saved);
+  }, []);
+
+  function changeProductLayout(layout: "grid" | "list") {
+    setProductLayout(layout);
+    window.localStorage.setItem("customer-product-layout", layout);
+  }
 
   useEffect(() => {
     // Disable pinch/double-tap zoom, selection, clipboard actions and native context menus.
@@ -358,7 +369,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
           {view === "menu" && (
             <section className="customer-menu">
               <label className="menu-search-wrap"><Search size={19}/><input className="menu-search" type="search" aria-label="ابحث عن طبق" placeholder="ابحث عن طبقك المفضل..." value={search} onChange={(event) => setSearch(event.target.value)} />{search && <button type="button" onClick={() => setSearch("")} aria-label="مسح البحث"><X size={17}/></button>}</label>
-              <div className="menu-heading"><div><span className="eyebrow">اكتشف قائمتنا</span><h2>وش ودّك تطلب؟</h2></div><span className="menu-result-count">{filteredProducts.length} صنف</span></div><div className="category-strip">
+              <div className="menu-heading"><div><span className="eyebrow">اكتشف قائمتنا</span><h2>وش ودّك تطلب؟</h2></div><div className="menu-heading-actions"><span className="menu-result-count">{filteredProducts.length} صنف</span><div className="product-view-switch" role="group" aria-label="طريقة عرض المنتجات"><button type="button" className={productLayout === "grid" ? "active" : ""} aria-pressed={productLayout === "grid"} onClick={() => changeProductLayout("grid")} aria-label="عرض بطاقات"><LayoutGrid size={18}/></button><button type="button" className={productLayout === "list" ? "active" : ""} aria-pressed={productLayout === "list"} onClick={() => changeProductLayout("list")} aria-label="عرض صفوف"><List size={19}/></button></div></div></div><div className="category-strip">
                 <button className={activeCategory === "all" ? "selected" : ""} onClick={() => setActiveCategory("all")}>الكل</button>
                 {categories.map((category) => (
                   <button className={activeCategory === category.id ? "selected" : ""} key={category.id} onClick={() => setActiveCategory(category.id)}>
