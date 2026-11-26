@@ -7,9 +7,9 @@ export const metadata:Metadata={
   title:"طلبك على راحتك | منصة الطلب",
   description:"اطلب من طاولتك وتابع حالة طلبك مباشرة.",
   manifest:"/manifest.webmanifest",
-  themeColor:"#FF6B4A",
   icons:{icon:"/icon.svg",apple:"/icon.svg"},
 };
+export const viewport = { themeColor: "#FF6B4A", width: "device-width", initialScale: 1, viewportFit: "cover" };
 export default function Layout({children}:{children:ReactNode}){
   return <html lang="ar" dir="rtl"><body><ServiceWorkerRegister/>{children}</body></html>;
 }
