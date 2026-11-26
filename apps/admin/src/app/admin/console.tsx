@@ -36,7 +36,7 @@ export function AdminConsole() {
         <footer><small>Restaurant Platform</small><span>وحدة التحكم</span></footer>
       </aside>
       <section className="admin-main">
-        <header className="admin-topbar"><div><span className="eyebrow">لوحة التحكم</span><h1>{modules.find((module) => module.id === active)?.title}</h1></div><span className="admin-live">اتصال مباشر</span></header>
+        <header className="admin-topbar"><div><span className="eyebrow">لوحة التحكم</span><h1>{modules.find((module) => module.id === active)?.title}</h1></div><div className="admin-topbar-actions"><span className="admin-live">اتصال مباشر</span><a href="https://restaurant-pos-5zkb.onrender.com/pos" target="_blank" rel="noreferrer">الكاشير ↗</a><a href="https://restaurant-waiter.onrender.com/waiter" target="_blank" rel="noreferrer">النادل ↗</a><a href="https://restaurant-kds-o7wi.onrender.com/kds" target="_blank" rel="noreferrer">المطبخ ↗</a><a href="https://restaurant-customer-nlut.onrender.com" target="_blank" rel="noreferrer">العميل ↗</a></div></header>
         {active === "overview" && <AdminOverview />}
         {active === "tables" && <TableManager />}
         {active === "menu" && <MenuManager />}
