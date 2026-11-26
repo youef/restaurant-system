@@ -1,0 +1,120 @@
+services:
+  - type: web
+    name: restaurant-web
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeployTrigger: commit
+    buildCommand: pnpm install --no-frozen-lockfile && pnpm --filter @restaurant/web build
+    startCommand: pnpm --filter @restaurant/web exec next start -p $PORT
+    healthCheckPath: /
+    envVars:
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: https://vevmowpemllrhscemstd.supabase.co
+      - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+        value: sb_publishable_oElaLhaUsayMeNvuhI0iJQ_WzkCKrQ3
+      - key: NEXT_PUBLIC_SITE_URL
+        value: https://restaurant-web-h5t4.onrender.com
+      - key: NEXT_PUBLIC_CUSTOMER_APP_URL
+        value: https://restaurant-customer-nlut.onrender.com
+
+  - type: web
+    name: restaurant-customer
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeployTrigger: commit
+    buildCommand: pnpm install --no-frozen-lockfile && pnpm --filter @restaurant/customer build
+    startCommand: pnpm --filter @restaurant/customer exec next start -p $PORT
+    healthCheckPath: /
+    envVars:
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: https://vevmowpemllrhscemstd.supabase.co
+      - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+        value: sb_publishable_oElaLhaUsayMeNvuhI0iJQ_WzkCKrQ3
+      - key: NEXT_PUBLIC_SITE_URL
+        value: https://restaurant-web-h5t4.onrender.com
+      - key: NEXT_PUBLIC_CUSTOMER_APP_URL
+        value: https://restaurant-customer-nlut.onrender.com
+
+  - type: web
+    name: restaurant-pos
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeployTrigger: commit
+    buildCommand: pnpm install --no-frozen-lockfile && pnpm --filter @restaurant/pos build
+    startCommand: pnpm --filter @restaurant/pos exec next start -p $PORT
+    healthCheckPath: /
+    envVars:
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: https://vevmowpemllrhscemstd.supabase.co
+      - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+        value: sb_publishable_oElaLhaUsayMeNvuhI0iJQ_WzkCKrQ3
+      - key: NEXT_PUBLIC_SITE_URL
+        value: https://restaurant-web-h5t4.onrender.com
+      - key: NEXT_PUBLIC_CUSTOMER_APP_URL
+        value: https://restaurant-customer-nlut.onrender.com
+
+  - type: web
+    name: restaurant-kds
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeployTrigger: commit
+    buildCommand: pnpm install --no-frozen-lockfile && pnpm --filter @restaurant/kds build
+    startCommand: pnpm --filter @restaurant/kds exec next start -p $PORT
+    healthCheckPath: /
+    envVars:
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: https://vevmowpemllrhscemstd.supabase.co
+      - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+        value: sb_publishable_oElaLhaUsayMeNvuhI0iJQ_WzkCKrQ3
+      - key: NEXT_PUBLIC_SITE_URL
+        value: https://restaurant-web-h5t4.onrender.com
+      - key: NEXT_PUBLIC_CUSTOMER_APP_URL
+        value: https://restaurant-customer-nlut.onrender.com
+
+  - type: web
+    name: restaurant-waiter
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeployTrigger: commit
+    buildCommand: pnpm install --no-frozen-lockfile && pnpm --filter @restaurant/waiter build
+    startCommand: pnpm --filter @restaurant/waiter exec next start -p $PORT
+    healthCheckPath: /
+    envVars:
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: https://vevmowpemllrhscemstd.supabase.co
+      - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+        value: sb_publishable_oElaLhaUsayMeNvuhI0iJQ_WzkCKrQ3
+      - key: NEXT_PUBLIC_SITE_URL
+        value: https://restaurant-web-h5t4.onrender.com
+      - key: NEXT_PUBLIC_CUSTOMER_APP_URL
+        value: https://restaurant-customer-nlut.onrender.com
+
+  - type: web
+    name: restaurant-admin
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeployTrigger: commit
+    buildCommand: pnpm install --no-frozen-lockfile && pnpm --filter @restaurant/admin build
+    startCommand: pnpm --filter @restaurant/admin exec next start -p $PORT
+    healthCheckPath: /
+    envVars:
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: https://vevmowpemllrhscemstd.supabase.co
+      - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+        value: sb_publishable_oElaLhaUsayMeNvuhI0iJQ_WzkCKrQ3
+      - key: NEXT_PUBLIC_SITE_URL
+        value: https://restaurant-web-h5t4.onrender.com
+      - key: NEXT_PUBLIC_CUSTOMER_APP_URL
+        value: https://restaurant-customer-nlut.onrender.com
