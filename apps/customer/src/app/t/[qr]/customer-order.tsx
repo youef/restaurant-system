@@ -218,7 +218,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
         return;
       }
       setLoading(true);
-      setMessage("جارٍ تجهيز طاولتك...");
+      setMessage("جارٍ التحقق من بياناتك...");
       const { data: authData } = await supabase.auth.getUser();
       let guestUser = authData.user;
       if (!guestUser) {
@@ -651,7 +651,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
   }
 
   if (loading) {
-    return <main className="customer-landing" dir="rtl"><span className="eyebrow">أهلاً بك</span><h1>نجهّز طاولتك</h1><p>يتم تحميل القائمة وربط جلستك...</p></main>;
+    return <main className="customer-landing" dir="rtl"><span className="eyebrow">أهلاً بك</span><h1>نتحقق من بياناتك</h1><p>بعد التحقق امسح رمز QR المثبت على الطاولة لفتح القائمة.</p></main>;
   }
 
   if (!sessionId) {
