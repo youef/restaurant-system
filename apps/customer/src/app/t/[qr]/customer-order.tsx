@@ -59,7 +59,6 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [online, setOnline] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const refreshSession = useCallback(async (id: string) => {
     const [orderResult, sessionResult, billResult] = await Promise.all([
@@ -87,7 +86,6 @@ export function CustomerOrder({ qr }: { qr: string }) {
     } else {
       setOrderItems([]);
     }
-    setLastUpdated(new Date());
   }, [supabase]);
 
   useEffect(() => {
