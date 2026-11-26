@@ -23,6 +23,7 @@ function isStaffRole(value: unknown): value is StaffRole {
 
 const userHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
   const callerId = String(ctx.userClaims?.sub ?? "");
   if (!callerId) return json({ error: "Unauthenticated" }, 401);
 
@@ -66,8 +67,10 @@ const userHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
         ...profile,
         email: user?.email ?? "",
         last_sign_in_at: user?.last_sign_in_at ?? null,
+        banned_until: user?.banned_until ?? null,
       };
     });
+
     return json({ staff });
   }
 
@@ -85,6 +88,7 @@ const userHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
     const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
       data: { full_name: fullName },
     });
+
     if (error || !data.user) {
       return json({ error: error?.message ?? "تعذر إرسال الدعوة." }, 400);
     }
@@ -111,6 +115,7 @@ const userHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
       entity_id: data.user.id,
       meta: { email, role: body.role },
     });
+
     return json({ ok: true, user_id: data.user.id, message: "تم إرسال دعوة الموظف بالبريد." }, 201);
   }
 
@@ -128,17 +133,19 @@ const userHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
     if (targetError || !target || target.role === "guest") {
       return json({ error: "الموظف غير موجود." }, 404);
     }
+
     if (body.role !== undefined && !isStaffRole(body.role)) {
       return json({ error: "الدور المحدد غير صالح." }, 400);
     }
-
     if (body.is_active === false && target.role === "admin") {
       const { count, error: countError } = await admin.from("profiles")
         .select("id", { count: "exact", head: true })
         .eq("role", "admin")
         .eq("is_active", true);
       if (countError) return json({ error: countError.message }, 500);
-      if ((count ?? 0) <= 1) return json({ error: "لا يمكن تعطيل آخر مدير نشط." }, 409);
+      if ((count ?? 0) <= 1) {
+        return json({ error: "لا يمكن تعطيل آخر مدير نشط." }, 409);
+      }
     }
 
     const patch: Record<string, unknown> = {};
@@ -156,6 +163,7 @@ const userHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
       entity_id: userId,
       meta: patch,
     });
+
     return json({ ok: true, message: "تم تحديث بيانات الموظف." });
   }
 
@@ -164,6 +172,7 @@ const userHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
   try {
     const response = await userHandler(req);
     const headers = new Headers(response.headers);
