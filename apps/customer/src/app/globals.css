@@ -301,3 +301,33 @@ button{touch-action:manipulation;cursor:pointer}
  .menu-card-view .product-card,.menu-list-view .product-card{animation:none}
  .menu-card-view .product-details-trigger .product-image,.menu-list-view .product-details-trigger .product-image{transition:none}
 }
+
+
+/* Edge-to-edge product photography: square corners, no image frame */
+.menu-card-view .product-card{padding:0!important;border-radius:0!important;border:0!important;box-shadow:0 7px 22px rgba(38,27,20,.055)}
+.menu-card-view .product-details-trigger{margin:0!important;border-radius:0!important;border:0!important;box-shadow:none!important}
+.menu-card-view .product-details-trigger .product-image,
+.menu-card-view .product-details-trigger .product-art{width:100%;height:clamp(155px,24vw,230px);aspect-ratio:1/1;object-fit:cover;border:0!important;border-radius:0!important;box-shadow:none!important}
+.menu-card-view .product-card h2,
+.menu-card-view .product-card .product-description,
+.menu-card-view .product-card .product-station-chip,
+.menu-card-view .product-card .product-price,
+.menu-card-view .product-card .product-add,
+.menu-card-view .product-card .unavailable-chip{margin-left:12px;margin-right:12px}
+.menu-card-view .product-card h2{margin-top:13px}
+.menu-card-view .product-card .product-add,
+.menu-card-view .product-card .unavailable-chip{margin-bottom:12px}
+.menu-list-view .product-card{padding:0!important;border-radius:0!important;border:0!important;box-shadow:0 5px 18px rgba(38,27,20,.045)}
+.menu-list-view .product-details-trigger{border-radius:0!important;border:0!important;box-shadow:none!important}
+.menu-list-view .product-details-trigger .product-image,
+.menu-list-view .product-details-trigger .product-art{border:0!important;border-radius:0!important;box-shadow:none!important;object-fit:cover}
+@media(max-width:420px){
+ .menu-card-view .product-card h2,
+ .menu-card-view .product-card .product-description,
+ .menu-card-view .product-card .product-station-chip,
+ .menu-card-view .product-card .product-price,
+ .menu-card-view .product-card .product-add,
+ .menu-card-view .product-card .unavailable-chip{margin-left:9px;margin-right:9px}
+ .menu-card-view .product-card .product-add,
+ .menu-card-view .product-card .unavailable-chip{margin-bottom:9px}
+}
