@@ -37,7 +37,7 @@ revoke all on function private.release_expired_table_reservations() from public,
 create or replace function private.join_table_session(p_qr uuid)
 returns uuid language plpgsql security definer
 set search_path = pg_catalog, public, private
-as $$
+as $
 declare
   v_table public.restaurant_tables%rowtype;
   v_session public.table_sessions%rowtype;
@@ -51,17 +51,14 @@ begin
   end if;
   select cp.id into v_customer_id from public.customer_profiles cp where cp.auth_user_id = auth.uid();
   if v_customer_id is null then raise exception 'أكمل التحقق من رقم الجوال وسنة الميلاد أولاً' using errcode = '42501'; end if;
-
   perform pg_advisory_xact_lock(hashtextextended(v_customer_id::text, 1));
   select * into v_table from public.restaurant_tables where qr_token = p_qr for update;
   if not found then raise exception 'رمز الطاولة غير صحيح' using errcode = 'P0002'; end if;
   if v_table.status = 'out_of_service' then raise exception 'هذه الطاولة خارج الخدمة حالياً' using errcode = 'P0001'; end if;
 
-  select * into v_session from public.table_sessions
-   where customer_id = v_customer_id and status = 'open' for update;
+  select * into v_session from public.table_sessions where customer_id = v_customer_id and status = 'open' for update;
   if found then
-    if v_session.reservation_expires_at is not null
-       and v_session.reservation_expires_at <= now()
+    if v_session.reservation_expires_at is not null and v_session.reservation_expires_at <= now()
        and not exists (select 1 from public.orders o where o.session_id = v_session.id) then
       update public.table_sessions set status = 'closed', closed_at = now(), reservation_expires_at = null where id = v_session.id;
       update public.restaurant_tables set status = 'available' where id = v_session.table_id and status <> 'out_of_service';
@@ -75,25 +72,42 @@ begin
     end if;
   end if;
 
-  select * into v_session from public.table_sessions
-   where table_id = v_table.id and status = 'open' for update;
+  -- Adopt a legacy open session only if this verified customer already belongs to it.
+  select ts.* into v_session from public.table_sessions ts
+   where ts.status = 'open'
+     and (
+       exists (select 1 from public.session_members sm where sm.session_id = ts.id and sm.user_id = auth.uid())
+       or exists (select 1 from public.orders o where o.session_id = ts.id and o.customer_id = v_customer_id)
+     )
+   order by ts.opened_at desc
+   limit 1
+   for update;
   if found then
-    if v_session.reservation_expires_at is not null
-       and v_session.reservation_expires_at <= now()
+    if v_session.reservation_expires_at is not null and v_session.reservation_expires_at <= now()
+       and not exists (select 1 from public.orders o where o.session_id = v_session.id) then
+      update public.table_sessions set status = 'closed', closed_at = now(), reservation_expires_at = null where id = v_session.id;
+      update public.restaurant_tables set status = 'available' where id = v_session.table_id and status <> 'out_of_service';
+      if v_session.table_id = v_table.id then v_table.status := 'available'; end if;
+    elsif v_session.table_id = v_table.id then
+      update public.table_sessions
+         set customer_id = v_customer_id, owner_user_id = auth.uid(),
+             reservation_expires_at = case when exists (select 1 from public.orders o where o.session_id = v_session.id)
+               then null else coalesce(reservation_expires_at, now() + interval '10 minutes') end
+       where id = v_session.id;
+      insert into public.session_members(session_id, user_id) values (v_session.id, auth.uid()) on conflict do nothing;
+      return v_session.id;
+    else
+      raise exception 'لديك زيارة مفتوحة على طاولة أخرى. أنهِ الزيارة الحالية أولاً.' using errcode = 'P0001';
+    end if;
+  end if;
+
+  select * into v_session from public.table_sessions where table_id = v_table.id and status = 'open' for update;
+  if found then
+    if v_session.reservation_expires_at is not null and v_session.reservation_expires_at <= now()
        and not exists (select 1 from public.orders o where o.session_id = v_session.id) then
       update public.table_sessions set status = 'closed', closed_at = now(), reservation_expires_at = null where id = v_session.id;
       update public.restaurant_tables set status = 'available' where id = v_table.id and status <> 'out_of_service';
       v_table.status := 'available';
-    elsif exists (select 1 from public.session_members sm where sm.session_id = v_session.id and sm.user_id = auth.uid())
-       or exists (select 1 from public.orders o where o.session_id = v_session.id and o.customer_id = v_customer_id) then
-      update public.table_sessions
-         set customer_id = v_customer_id, owner_user_id = auth.uid(),
-             reservation_expires_at = case
-               when exists (select 1 from public.orders o where o.session_id = v_session.id) then null
-               else coalesce(reservation_expires_at, now() + interval '10 minutes') end
-       where id = v_session.id;
-      insert into public.session_members(session_id, user_id) values (v_session.id, auth.uid()) on conflict do nothing;
-      return v_session.id;
     else
       raise exception 'الطاولة مشغولة حالياً. اختر طاولة أخرى أو انتظر حتى يتم إخلاؤها.' using errcode = 'P0001';
     end if;
