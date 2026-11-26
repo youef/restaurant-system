@@ -21,18 +21,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm build
       - name: Supabase CLI
+        id: supabase
         uses: supabase/setup-cli@v3
         with:
           version: 3.4.0
       - run: supabase start
       - run: supabase db lint
       - run: supabase test db
-      - if: always()
+      - if: always() && steps.supabase.outcome == 'success'
         run: supabase stop
 
   deploy-database:
@@ -50,3 +50,22 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: supabase db push --remote --yes
+
+
+  source-archive:
+    if: always() && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package source without secrets or dependencies
+        run: |
+          zip -qr restaurant-system.zip . \
+            -x '.git/*' '*/node_modules/*' 'node_modules/*' \
+               '.env' '.env.*' '*/.env' '*/.env.*' \
+               '.next/*' '*/.next/*' 'coverage/*' 'test-results/*'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: restaurant-system-source
+          path: restaurant-system.zip
+          if-no-files-found: error
+          retention-days: 14
