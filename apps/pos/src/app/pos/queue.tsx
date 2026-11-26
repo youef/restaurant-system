@@ -5,7 +5,7 @@ import { getSupabaseBrowserClient } from "@restaurant/db/client";
 import { useRealtimeRefresh } from "@restaurant/realtime";
 import { formatMoney, formatDateTime } from "@restaurant/i18n";
 
-type Order = { id: string; order_no: number; session_id: string; table_id: string; status: string; total: number; placed_at: string; notes: string | null };
+type Order = { id: string; order_no: number; session_id: string; table_id: string; status: string; total: number; placed_at: string; notes: string | null; payment_method: "cash" | "card" };
 type Item = { id: string; order_id: string; name_ar: string; quantity: number; notes: string | null };
 type Table = { id: string; number: number };
 type Session = { id: string; table_id: string; opened_at: string };
@@ -28,7 +28,7 @@ export function PosQueue() {
   async function loadOrders() {
     const db = getSupabaseBrowserClient();
     const { data, error } = await db.from("orders")
-      .select("id,order_no,session_id,table_id,status,total,placed_at,notes")
+      .select("id,order_no,session_id,table_id,status,total,placed_at,notes,payment_method")
       .eq("status", "pending")
       .order("placed_at", { ascending: true });
     if (error) { setMessage(error.message); return; }
@@ -113,6 +113,7 @@ export function PosQueue() {
                   <strong className="mono-number">#{order.order_no}</strong>
                   <span>طاولة {tableNumbers.get(order.table_id) ?? "—"}</span>
                   <small>{formatDateTime(order.placed_at)}</small>
+                  <span className={"payment-method-chip " + (order.payment_method === "card" ? "card" : "cash")}>{order.payment_method === "card" ? "شبكة" : "كاش"}</span>
                 </header>
                 <ul>
                   {(orderLines.get(order.id) ?? []).map((item) => (
