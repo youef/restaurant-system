@@ -8,7 +8,7 @@ type Category = { id: string; name_ar: string; name_en: string | null; sort_orde
 type Product = {
   id: string; category_id: string; name_ar: string; name_en: string | null;
   description_ar: string | null; price: number; image_path: string | null;
-  is_available: boolean; is_featured: boolean; sort_order: number;
+  is_available: boolean; is_featured: boolean; sort_order: number; station: string | null;
 };
 type Order = {
   id: string; order_no: number; status: string; subtotal: number; vat_amount: number;
@@ -48,6 +48,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const [cart, setCart] = useState<Record<string, CartLine>>({});
   const [quote, setQuote] = useState<Quote | null>(null);
   const [activeCategory, setActiveCategory] = useState("all");
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"menu" | "cart" | "orders">("menu");
   const [billRequest, setBillRequest] = useState<BillRequest | null>(null);
@@ -113,7 +114,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
         supabase.from("categories").select("id,name_ar,name_en,sort_order")
           .eq("is_active", true).order("sort_order"),
         supabase.from("products")
-          .select("id,category_id,name_ar,name_en,description_ar,price,image_path,is_available,is_featured,sort_order")
+          .select("id,category_id,name_ar,name_en,description_ar,price,image_path,is_available,is_featured,sort_order,station")
           .eq("is_active", true).order("sort_order"),
       ]);
       if (categoryResult.error) throw categoryResult.error;
@@ -329,7 +330,10 @@ export function CustomerOrder({ qr }: { qr: string }) {
                   const img = imageUrl(product.image_path);
                   return (
                     <article className="product-card" key={product.id}>
-                      {img ? <img className="product-image" src={img} alt={product.name_ar} loading="lazy" /> : <div className="product-art" aria-hidden="true">✦</div>}
+                      <button type="button" className="product-details-trigger" onClick={() => setSelectedProduct(product)} aria-label={"عرض تفاصيل " + product.name_ar}>
+                        {img ? <img className="product-image" src={img} alt={product.name_ar} loading="lazy" /> : <div className="product-art" aria-hidden="true">✦</div>}
+                        <span className="product-details-label">عرض التفاصيل <span aria-hidden="true">←</span></span>
+                      </button>
                       <h2>{product.name_ar}</h2>
                       {product.description_ar && <p className="product-description">{product.description_ar}</p>}
                       <strong className="product-price">{formatMoney(Number(product.price))}</strong>
@@ -344,6 +348,32 @@ export function CustomerOrder({ qr }: { qr: string }) {
                 {filteredProducts.length === 0 && <div className="empty-state">لا توجد أصناف تطابق بحثك.</div>}
               </div>
             </section>
+          )}
+
+
+          {selectedProduct && (
+            <div className="product-detail-backdrop" role="presentation" onClick={() => setSelectedProduct(null)}>
+              <section className="product-detail-sheet" role="dialog" aria-modal="true" aria-labelledby="product-detail-title" onClick={(event) => event.stopPropagation()}>
+                <button type="button" className="product-detail-close" onClick={() => setSelectedProduct(null)} aria-label="إغلاق التفاصيل">×</button>
+                {imageUrl(selectedProduct.image_path)
+                  ? <img className="product-detail-image" src={imageUrl(selectedProduct.image_path)!} alt={selectedProduct.name_ar} />
+                  : <div className="product-detail-image product-detail-image-empty">✦</div>}
+                <div className="product-detail-content">
+                  <div className="product-detail-meta">
+                    <span>{categories.find((category) => category.id === selectedProduct.category_id)?.name_ar ?? "من القائمة"}</span>
+                    {selectedProduct.is_featured && <span className="product-featured-label">اختيار مميز</span>}
+                  </div>
+                  <h2 id="product-detail-title">{selectedProduct.name_ar}</h2>
+                  {selectedProduct.name_en && <p className="product-detail-english" dir="ltr">{selectedProduct.name_en}</p>}
+                  <p className="product-detail-description">{selectedProduct.description_ar?.trim() || "لا يوجد وصف إضافي لهذا المنتج حالياً."}</p>
+                  <div className="product-detail-price-row"><span>السعر</span><strong>{formatMoney(Number(selectedProduct.price))}</strong></div>
+                  {selectedProduct.station && <p className="product-detail-station">جهة التحضير: {({ kitchen: "المطبخ", grill: "الشواية", bar: "المشروبات", dessert: "الحلويات" } as Record<string,string>)[selectedProduct.station] ?? selectedProduct.station}</p>}
+                  {selectedProduct.is_available
+                    ? <button type="button" className="product-add product-detail-add" onClick={() => { changeQuantity(selectedProduct.id, 1); setSelectedProduct(null); }}>أضف إلى السلة{cart[selectedProduct.id] ? " · الكمية الحالية " + cart[selectedProduct.id].quantity : ""}</button>
+                    : <span className="unavailable-chip">غير متوفر حالياً</span>}
+                </div>
+              </section>
+            </div>
           )}
 
           {view === "cart" && (
