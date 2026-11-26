@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabaseBrowserClient } from "@restaurant/db/client";
 import { formatMoney } from "@restaurant/i18n";
-import { Search, ShoppingBag, ClipboardList, UtensilsCrossed, Plus, Minus, X, Sparkles, Wifi, WifiOff, ChefHat, ArrowLeft, Check } from "lucide-react";
+import { Search, ShoppingBag, ClipboardList, UtensilsCrossed, Plus, Minus, X, WifiOff, ArrowLeft, Check, Store, MapPin, Phone, Clock, Star } from "lucide-react";
 
 type Category = { id: string; name_ar: string; name_en: string | null; sort_order: number };
+type RestaurantSettings = { restaurant_name_ar: string; restaurant_name_en: string | null; logo_path: string | null; phone: string | null; address: string | null; opening_hours: Record<string, unknown> | null };
 type Product = {
   id: string; category_id: string; name_ar: string; name_en: string | null;
   description_ar: string | null; price: number; image_path: string | null;
@@ -40,6 +41,7 @@ function imageUrl(path: string | null) {
 export function CustomerOrder({ qr }: { qr: string }) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const [tableNumber, setTableNumber] = useState<number | null>(null);
+  const [restaurant, setRestaurant] = useState<RestaurantSettings | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionStatus, setSessionStatus] = useState<"open" | "closed">("open");
   const [categories, setCategories] = useState<Category[]>([]);
@@ -111,7 +113,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
       if (!active) return;
       setSessionId(id);
 
-      const [categoryResult, productResult] = await Promise.all([
+      const [categoryResult, productResult, settingsResult] = await Promise.all([
         supabase.from("categories").select("id,name_ar,name_en,sort_order")
           .eq("is_active", true).order("sort_order"),
         supabase.from("products")
@@ -333,7 +335,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
                     <article className="product-card" key={product.id}>
                       <button type="button" className="product-details-trigger" onClick={() => setSelectedProduct(product)} aria-label={"عرض تفاصيل " + product.name_ar}>
                         {img ? <img className="product-image" src={img} alt={product.name_ar} loading="lazy" /> : <div className="product-art" aria-hidden="true"><UtensilsCrossed size={34}/></div>}
-                        <span className="product-details-label">التفاصيل <ArrowLeft size={15}/></span>
+                        <span className="product-details-label"><span>عرض التفاصيل</span><ArrowLeft size={15}/></span>
                       </button>
                       <h2>{product.name_ar}</h2>
                       {product.description_ar && <p className="product-description">{product.description_ar}</p>}
@@ -379,7 +381,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
 
           {view === "cart" && (
             <section className="cart-sheet">
-              <div className="section-title"><h2>سلة طلبك</h2><span>{cartCount} أصناف</span></div>
+              <div className="page-heading"><span className="eyebrow">راجع اختياراتك</span><h2>سلة الطلب</h2><p>{cartCount} قطعة في سلتك</p></div>
               {cartItems.length === 0 ? <div className="empty-state"><p>السلة فارغة حالياً.</p><button className="action-button" onClick={() => setView("menu")}>تصفح القائمة</button></div> : (
                 <>
                   <div className="cart-lines">
@@ -416,8 +418,8 @@ export function CustomerOrder({ qr }: { qr: string }) {
 
           {view === "orders" && (
             <section className="orders-list">
-              <div className="section-title"><h2>طلبات الجلسة</h2>{lastUpdated && <small>آخر تحديث {lastUpdated.toLocaleTimeString("ar-SA")}</small>}</div>
-              {orders.map((order) => {
+              <div className="page-heading"><span className="eyebrow">تابع طلباتك</span><h2>طلباتي</h2><p>كل طلباتك وحالتها في مكان واحد</p></div>
+              {orders.length === 0 && <div className="empty-state orders-empty"><ClipboardList size={34}/><h3>ما عندك طلبات حتى الآن</h3><p>بعد إرسال طلبك، تقدر تتابع حالته من هنا.</p><button className="action-button" onClick={() => setView("menu")}>استعرض القائمة</button></div>}\n              {orders.map((order) => {
                 const currentIndex = statusSteps.findIndex((step) => step.key === order.status);
                 const rejected = order.status === "rejected";
                 return (
