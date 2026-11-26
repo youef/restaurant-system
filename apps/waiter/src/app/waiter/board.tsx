@@ -92,14 +92,14 @@ export function WaiterBoard() {
       return;
     }
     setBusy(true);
-    const { error } = await getSupabaseBrowserClient().rpc("close_session", {
+    const { data, error } = await getSupabaseBrowserClient().rpc("close_session", {
       p_session_id: selectedBill.session_id,
       p_method: method,
     });
     setBusy(false);
     if (error) setMessage(error.message);
     else {
-      setMessage("تم استلام الدفع وإغلاق الحساب بنجاح.");
+      setMessage("تم استلام " + formatMoney(Number(data ?? billTotal)) + " عبر " + (method === "cash" ? "النقد" : "الشبكة") + " وإغلاق الحساب بنجاح.");
       setSelectedBill(null);
       setReceived("");
       setBills((current) => current.filter((bill) => bill.session_id !== selectedBill.session_id));
