@@ -721,14 +721,16 @@ export function CustomerOrder({ qr }: { qr: string }) {
     if (!window.confirm("سيتم إرسال طلب إنهاء الزيارة إلى النادل. لن تُغلق الطاولة نهائياً حتى تتم تسوية الحساب من الموظف. متابعة؟")) return;
     setBusy(true);
     setMessage("");
-    const { error } = await supabase.rpc("request_customer_exit", { p_session_id: sessionId });
+    const { data, error } = await supabase.rpc("request_customer_exit", { p_session_id: sessionId });
     setBusy(false);
     if (error) {
       setMessage(error.message);
       return;
     }
     if (customerId) await refreshSession(sessionId, customerId);
-    setMessage("تم تسجيل طلب مغادرة الطاولة وإبلاغ النادل. انتظر تسوية الحساب وإغلاق الجلسة.");
+    setMessage(data
+      ? "تم تسجيل طلب مغادرة الطاولة وإبلاغ النادل. انتظر تسوية الحساب وإغلاق الجلسة."
+      : "لم توجد طلبات معلّقة؛ تم إنهاء الزيارة وتحرير الطاولة مباشرة.");
   }
 
   async function sendOrder() {
