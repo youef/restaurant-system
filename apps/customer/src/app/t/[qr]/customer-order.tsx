@@ -273,7 +273,6 @@ export function CustomerOrder({ qr }: { qr: string }) {
           icon: "/icon.svg",
           badge: "/icon.svg",
           tag: "order-" + latest.id,
-          renotify: true,
           silent: false,
         })
       ).catch(() => undefined);
