@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabaseBrowserClient } from "@restaurant/db/client";
 import { formatMoney } from "@restaurant/i18n";
+import { Search, ShoppingBag, ClipboardList, UtensilsCrossed, Plus, Minus, X, Sparkles, Wifi, WifiOff, ChefHat, ArrowLeft, Check } from "lucide-react";
 
 type Category = { id: string; name_ar: string; name_en: string | null; sort_order: number };
 type Product = {
@@ -292,7 +293,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
           <p>{sessionStatus === "closed" ? "شكراً لزيارتكم، نتمنى رؤيتكم قريباً." : "اختر أطباقك واستمتع بوقتك."}</p>
         </div>
         <span className={"connection-state " + (online ? "is-online" : "is-offline")}>
-          {online ? "متصل" : "غير متصل"}
+          {online ? <><Wifi size={15}/> متصل</> : <><WifiOff size={15}/> غير متصل</>}
         </span>
       </header>
 
@@ -309,15 +310,15 @@ export function CustomerOrder({ qr }: { qr: string }) {
       ) : (
         <>
           <nav className="customer-tabs" aria-label="القائمة الرئيسية">
-            <button aria-pressed={view === "menu"} onClick={() => setView("menu")}>القائمة</button>
-            <button aria-pressed={view === "cart"} onClick={() => setView("cart")}>السلة ({cartCount})</button>
-            <button aria-pressed={view === "orders"} onClick={() => setView("orders")}>طلباتي ({orders.length})</button>
+            <button aria-pressed={view === "menu"} onClick={() => setView("menu")}><UtensilsCrossed size={19}/><span>القائمة</span></button>
+            <button aria-pressed={view === "cart"} onClick={() => setView("cart")}><ShoppingBag size={19}/><span>السلة</span>{cartCount > 0 && <i className="tab-count">{cartCount}</i>}</button>
+            <button aria-pressed={view === "orders"} onClick={() => setView("orders")}><ClipboardList size={19}/><span>طلباتي</span>{orders.length > 0 && <i className="tab-count">{orders.length}</i>}</button>
           </nav>
 
           {view === "menu" && (
             <section className="customer-menu">
-              <input className="menu-search" type="search" placeholder="ابحث عن طبق..." value={search} onChange={(event) => setSearch(event.target.value)} />
-              <div className="category-strip">
+              <label className="menu-search-wrap"><Search size={19}/><input className="menu-search" type="search" aria-label="ابحث عن طبق" placeholder="وش تشتهي اليوم؟ ابحث عن طبق..." value={search} onChange={(event) => setSearch(event.target.value)} />{search && <button type="button" onClick={() => setSearch("")} aria-label="مسح البحث"><X size={17}/></button>}</label>
+              <div className="menu-intro"><div><span className="eyebrow">قائمة الطعام</span><h2>اختر اللي تحبه <Sparkles size={21}/></h2><p>أطباق طازجة تُحضّر بكل عناية</p></div><span className="menu-intro-mark"><ChefHat size={28}/></span></div><div className="category-strip">
                 <button className={activeCategory === "all" ? "selected" : ""} onClick={() => setActiveCategory("all")}>الكل</button>
                 {categories.map((category) => (
                   <button className={activeCategory === category.id ? "selected" : ""} key={category.id} onClick={() => setActiveCategory(category.id)}>
@@ -331,15 +332,15 @@ export function CustomerOrder({ qr }: { qr: string }) {
                   return (
                     <article className="product-card" key={product.id}>
                       <button type="button" className="product-details-trigger" onClick={() => setSelectedProduct(product)} aria-label={"عرض تفاصيل " + product.name_ar}>
-                        {img ? <img className="product-image" src={img} alt={product.name_ar} loading="lazy" /> : <div className="product-art" aria-hidden="true">✦</div>}
-                        <span className="product-details-label">عرض التفاصيل <span aria-hidden="true">←</span></span>
+                        {img ? <img className="product-image" src={img} alt={product.name_ar} loading="lazy" /> : <div className="product-art" aria-hidden="true"><UtensilsCrossed size={34}/></div>}
+                        <span className="product-details-label">التفاصيل <ArrowLeft size={15}/></span>
                       </button>
                       <h2>{product.name_ar}</h2>
                       {product.description_ar && <p className="product-description">{product.description_ar}</p>}
                       <strong className="product-price">{formatMoney(Number(product.price))}</strong>
                       {product.is_available ? (
                         <button className="product-add" onClick={() => changeQuantity(product.id, 1)}>
-                          {cart[product.id] ? "أضف المزيد · " + cart[product.id].quantity : "أضف إلى السلة"}
+                          {cart[product.id] ? <><Check size={17}/> أضيف · {cart[product.id].quantity}</> : <><Plus size={17}/> أضف للسلة</>}
                         </button>
                       ) : <span className="unavailable-chip">غير متوفر حالياً</span>}
                     </article>
@@ -354,10 +355,10 @@ export function CustomerOrder({ qr }: { qr: string }) {
           {selectedProduct && (
             <div className="product-detail-backdrop" role="presentation" onClick={() => setSelectedProduct(null)}>
               <section className="product-detail-sheet" role="dialog" aria-modal="true" aria-labelledby="product-detail-title" onClick={(event) => event.stopPropagation()}>
-                <button type="button" className="product-detail-close" onClick={() => setSelectedProduct(null)} aria-label="إغلاق التفاصيل">×</button>
+                <button type="button" className="product-detail-close" onClick={() => setSelectedProduct(null)} aria-label="إغلاق التفاصيل"><X size={21}/></button>
                 {imageUrl(selectedProduct.image_path)
                   ? <img className="product-detail-image" src={imageUrl(selectedProduct.image_path)!} alt={selectedProduct.name_ar} />
-                  : <div className="product-detail-image product-detail-image-empty">✦</div>}
+                  : <div className="product-detail-image product-detail-image-empty"><UtensilsCrossed size={48}/></div>}
                 <div className="product-detail-content">
                   <div className="product-detail-meta">
                     <span>{categories.find((category) => category.id === selectedProduct.category_id)?.name_ar ?? "من القائمة"}</span>
@@ -369,7 +370,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
                   <div className="product-detail-price-row"><span>السعر</span><strong>{formatMoney(Number(selectedProduct.price))}</strong></div>
                   {selectedProduct.station && <p className="product-detail-station">جهة التحضير: {({ kitchen: "المطبخ", grill: "الشواية", bar: "المشروبات", dessert: "الحلويات" } as Record<string,string>)[selectedProduct.station] ?? selectedProduct.station}</p>}
                   {selectedProduct.is_available
-                    ? <button type="button" className="product-add product-detail-add" onClick={() => { changeQuantity(selectedProduct.id, 1); setSelectedProduct(null); }}>أضف إلى السلة{cart[selectedProduct.id] ? " · الكمية الحالية " + cart[selectedProduct.id].quantity : ""}</button>
+                    ? <button type="button" className="product-add product-detail-add" onClick={() => { changeQuantity(selectedProduct.id, 1); setSelectedProduct(null); }}><Plus size={18}/> أضف للسلة{cart[selectedProduct.id] ? " · الكمية الحالية " + cart[selectedProduct.id].quantity : ""}</button>
                     : <span className="unavailable-chip">غير متوفر حالياً</span>}
                 </div>
               </section>
@@ -389,9 +390,9 @@ export function CustomerOrder({ qr }: { qr: string }) {
                         <article className="cart-line" key={line.product_id}>
                           <div className="cart-line-heading"><strong>{product.name_ar}</strong><span>{formatMoney(Number(product.price))}</span></div>
                           <div className="quantity-controls">
-                            <button aria-label="زيادة الكمية" onClick={() => changeQuantity(line.product_id, 1)}>+</button>
+                            <button aria-label="زيادة الكمية" onClick={() => changeQuantity(line.product_id, 1)}><Plus size={17}/></button>
                             <strong>{line.quantity}</strong>
-                            <button aria-label="تقليل الكمية" onClick={() => changeQuantity(line.product_id, -1)}>−</button>
+                            <button aria-label="تقليل الكمية" onClick={() => changeQuantity(line.product_id, -1)}><Minus size={17}/></button>
                           </div>
                           <label className="item-note">ملاحظة للصنف
                             <input value={line.notes ?? ""} onChange={(event) => changeNotes(line.product_id, event.target.value)} placeholder="بدون بصل، زيادة صوص..." maxLength={250} />
@@ -406,7 +407,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
                     <div className="quote-total"><span>الإجمالي</span><strong>{quote ? formatMoney(quote.total) : "جارٍ التسعير..."}</strong></div>
                   </div>
                   <button className="action-button send-order" disabled={!quote || busy || !online} onClick={() => void sendOrder()}>
-                    {busy ? "جارٍ الإرسال..." : "أرسل الطلب"}
+                    {busy ? "جارٍ الإرسال..." : <><ShoppingBag size={19}/> تأكيد وإرسال الطلب</>}
                   </button>
                 </>
               )}
@@ -436,7 +437,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
               {billRequest?.status === "requested" && <p className="bill-status">تم إرسال طلب الحساب. النادل في الطريق إليك.</p>}
               {billRequest?.status === "acknowledged" && <p className="bill-status">اطّلع النادل على طلب الحساب، وسيأتي إليك قريباً.</p>}
               <button className="bill-button" disabled={busy || !!billRequest || !online} onClick={() => void requestBill()}>
-                {billRequest ? "تم طلب الحساب" : "اطلب النادل للدفع"}
+                {billRequest ? <><Check size={18}/> تم طلب الحساب</> : <>اطلب النادل للدفع <ArrowLeft size={17}/></>}
               </button>
             </section>
           )}
