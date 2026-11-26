@@ -185,3 +185,9 @@ button{touch-action:manipulation;cursor:pointer}
  .quantity-controls button{width:36px;height:36px}
 }
 @media(prefers-reduced-motion:reduce){.product-card{transition:none}}
+
+
+/* Customer kiosk-style interaction lock */
+.customer-app,.customer-landing{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:pan-x pan-y}
+.customer-app img,.customer-app svg,.customer-app button{-webkit-user-drag:none;user-select:none}
+.customer-app input,.customer-app textarea,[contenteditable="true"]{-webkit-user-select:text;user-select:text;-webkit-touch-callout:none}
