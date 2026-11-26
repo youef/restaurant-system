@@ -9,7 +9,7 @@ export const metadata:Metadata={
   manifest:"/manifest.webmanifest",
   icons:{icon:"/icon.svg",apple:"/icon.svg"},
 };
-export const viewport = { themeColor: "#FF6B4A", width: "device-width", initialScale: 1, viewportFit: "cover" };
+export const viewport = { themeColor: "#FF6B4A", width: "device-width", initialScale: 1, maximumScale: 1, userScalable: false, viewportFit: "cover" };
 export default function Layout({children}:{children:ReactNode}){
   return <html lang="ar" dir="rtl"><body><ServiceWorkerRegister/>{children}</body></html>;
 }
