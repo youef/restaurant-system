@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabaseBrowserClient } from "@restaurant/db/client";
 import { formatMoney } from "@restaurant/i18n";
-import { Search, ShoppingBag, ClipboardList, UtensilsCrossed, Plus, Minus, X, WifiOff, ArrowLeft, Check, Store, MapPin, Phone, Clock, LayoutGrid, List, Sparkles, ChefHat, Flame } from "lucide-react";
+import { Search, ShoppingBag, ClipboardList, UtensilsCrossed, Plus, Minus, X, WifiOff, ArrowLeft, Check, Store, MapPin, Phone, Clock, LayoutGrid, List, Sparkles, ChefHat, Flame, Banknote, CreditCard } from "lucide-react";
 
 type Category = { id: string; name_ar: string; name_en: string | null; sort_order: number };
 type RestaurantSettings = { restaurant_name_ar: string; restaurant_name_en: string | null; logo_path: string | null; phone: string | null; address: string | null; opening_hours: Record<string, unknown> | null };
@@ -14,7 +14,7 @@ type Product = {
 };
 type Order = {
   id: string; order_no: number; status: string; subtotal: number; vat_amount: number;
-  total: number; notes: string | null; rejected_reason: string | null; placed_at: string;
+  total: number; notes: string | null; rejected_reason: string | null; placed_at: string; payment_method: "cash" | "card";
 };
 type OrderItem = {
   id: string; order_id: string; name_ar: string; quantity: number;
@@ -49,7 +49,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [cart, setCart] = useState<Record<string, CartLine>>({});
-  const [quote, setQuote] = useState<Quote | null>(null);
+  const [quote, setQuote] = useState<Quote | null>(null);\n  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");
   const [activeCategory, setActiveCategory] = useState("all");
   const [productLayout, setProductLayout] = useState<"grid" | "list">("grid");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -64,7 +64,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const refreshSession = useCallback(async (id: string) => {
     const [orderResult, sessionResult, billResult] = await Promise.all([
       supabase.from("orders")
-        .select("id,order_no,status,subtotal,vat_amount,total,notes,rejected_reason,placed_at")
+        .select("id,order_no,status,subtotal,vat_amount,total,notes,rejected_reason,placed_at,payment_method")
         .eq("session_id", id)
         .order("placed_at", { ascending: false }),
       supabase.from("table_sessions").select("status").eq("id", id).maybeSingle(),
@@ -483,6 +483,26 @@ export function CustomerOrder({ qr }: { qr: string }) {
                       );
                     })}
                   </div>
+                  <section className="checkout-payment-card" aria-labelledby="checkout-payment-title">
+                    <div className="checkout-payment-heading">
+                      <span className="eyebrow">اختر ما يناسبك</span>
+                      <h3 id="checkout-payment-title">طريقة الدفع</h3>
+                      <p>حدد طريقة الدفع التي ستستخدمها عند استلام طلبك</p>
+                    </div>
+                    <div className="checkout-payment-options">
+                      <button type="button" className={"checkout-payment-option " + (paymentMethod === "cash" ? "selected" : "")} aria-pressed={paymentMethod === "cash"} onClick={() => setPaymentMethod("cash")}>
+                        <span className="checkout-payment-icon"><Banknote size={22}/></span>
+                        <span><strong>نقداً (كاش)</strong><small>الدفع نقداً للموظف</small></span>
+                        <i aria-hidden="true">{paymentMethod === "cash" ? <Check size={17}/> : null}</i>
+                      </button>
+                      <button type="button" className={"checkout-payment-option " + (paymentMethod === "card" ? "selected" : "")} aria-pressed={paymentMethod === "card"} onClick={() => setPaymentMethod("card")}>
+                        <span className="checkout-payment-icon"><CreditCard size={22}/></span>
+                        <span><strong>بطاقة عبر جهاز الشبكة</strong><small>الدفع لدى الموظف بجهاز الصراف</small></span>
+                        <i aria-hidden="true">{paymentMethod === "card" ? <Check size={17}/> : null}</i>
+                      </button>
+                    </div>
+                    <p className="checkout-payment-note">اختيار البطاقة لا يخصم المبلغ إلكترونياً؛ ستتم العملية على جهاز الشبكة لدى المطعم.</p>
+                  </section>
                   <section className="cart-summary-card">
                     <div className="cart-summary-heading"><div><span className="eyebrow">ملخص الدفع</span><h3>تفاصيل الفاتورة</h3></div><span className="cart-secure-label"><Check size={13}/> تسعير دقيق</span></div>
                     <div className="quote-summary">
@@ -518,6 +538,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
                       <span>{rejected ? "مرفوض" : statusSteps[Math.max(0, currentIndex)]?.label ?? order.status}</span>
                       <b>{formatMoney(Number(order.total))}</b>
                     </div>
+                    <p className="guest-order-payment">{order.payment_method === "card" ? <><CreditCard size={14}/> الدفع عبر جهاز الشبكة</> : <><Banknote size={14}/> الدفع نقداً</>}</p>
                     {!rejected && <div className="order-stepper">{statusSteps.map((step, index) => <span className={(index <= currentIndex ? "done " : "") + "step"} key={step.key}>{step.label}</span>)}</div>}
                     <ul>{(orderItemMap.get(order.id) ?? []).map((item) => <li key={item.id}>{item.name_ar} × {item.quantity}{item.notes ? <small> — {item.notes}</small> : null}</li>)}</ul>
                     {order.rejected_reason && <p className="rejection-note">سبب الرفض: {order.rejected_reason}</p>}
