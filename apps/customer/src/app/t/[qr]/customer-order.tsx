@@ -23,6 +23,7 @@ type OrderItem = {
 type CartLine = { quantity: number; notes: string };
 type Quote = { subtotal: number; vat_amount: number; total: number };
 type BillRequest = { id: string; status: "requested" | "acknowledged" | "closed" };
+type CustomerTable = { table_number: number; seats: number; status: "available" | "occupied" | "out_of_service" };
 
 const statusSteps = [
   { key: "pending", label: "تم الإرسال" },
@@ -94,6 +95,7 @@ function extractQrToken(value: string) {
 export function CustomerOrder({ qr }: { qr: string }) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const [tableNumber, setTableNumber] = useState<number | null>(null);
+  const [tableChoices, setTableChoices] = useState<CustomerTable[]>([]);
   const [phone, setPhone] = useState("");
   const [phoneInput, setPhoneInput] = useState("");
   const [birthYear, setBirthYear] = useState("");
@@ -144,14 +146,12 @@ export function CustomerOrder({ qr }: { qr: string }) {
 
   async function startQrScanner() {
     if (!navigator.mediaDevices?.getUserMedia) {
-      setMessage("الكاميرا تحتاج إلى فتح الموقع عبر HTTPS ومن متصفح يسمح بالوصول إليها. جرّب فتح الموقع في Safari أو Chrome ثم اسمح بالكاميرا.");
+      setMessage("الكاميرا تحتاج إلى HTTPS ومتصفح يسمح بالوصول إليها. افتح الرابط في Safari أو Chrome واسمح بالكاميرا.");
       return;
     }
     try {
       stopQrScanner();
-      const Detector = (window as unknown as { BarcodeDetector?: QrDetectorConstructor }).BarcodeDetector;
-      const detector = Detector ? new Detector({ formats: ["qr_code"] }) : null;
-      const decodeWithJsQr = detector ? null : await loadJsQr();
+      // Open the camera first. A QR decoder/CDN failure must never prevent the live preview.
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -160,20 +160,38 @@ export function CustomerOrder({ qr }: { qr: string }) {
       const video = videoRef.current;
       if (!video) throw new Error("تعذر عرض الكاميرا. أعد المحاولة.");
       video.setAttribute("playsinline", "true");
+      video.setAttribute("autoplay", "true");
       video.muted = true;
       video.srcObject = stream;
       await video.play();
       setCameraActive(true);
+      setMessage("الكاميرا تعمل. وجّهها إلى رمز QR أو اختر رقم الطاولة من القائمة.");
+
+      const Detector = (window as unknown as { BarcodeDetector?: QrDetectorConstructor }).BarcodeDetector;
+      const detector = Detector ? new Detector({ formats: ["qr_code"] }) : null;
+      let decodeWithJsQr: JsQrDecoder | null = null;
+      if (!detector) {
+        try {
+          decodeWithJsQr = await loadJsQr();
+        } catch (decoderError) {
+          setMessage(decoderError instanceof Error ? decoderError.message + " يمكنك اختيار الطاولة من القائمة أو إدخال رقمها يدوياً." : "تعذر تحميل قارئ QR. اختر الطاولة من القائمة أو أدخل رقمها يدوياً.");
+          return;
+        }
+      }
+
       const canvas = document.createElement("canvas");
       const context = canvas.getContext("2d", { willReadFrequently: true });
-      if (!context) throw new Error("تعذر تهيئة قارئ الكاميرا.");
+      if (!context) {
+        setMessage("الكاميرا تعمل، لكن تعذر تهيئة قارئ الرمز. اختر الطاولة من القائمة.");
+        return;
+      }
       let lastScanAt = 0;
       const scan = async () => {
         if (!cameraStreamRef.current || !videoRef.current) return;
         const currentVideo = videoRef.current;
         if (currentVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && currentVideo.videoWidth > 0) {
           const now = performance.now();
-          if (now - lastScanAt >= 140) {
+          if (now - lastScanAt >= 180) {
             lastScanAt = now;
             try {
               let rawValue: string | null = null;
@@ -198,7 +216,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
                 setMessage("تمت قراءة رقم الطاولة، جارٍ التحقق من حالتها...");
                 return;
               }
-            } catch { /* continue scanning until a QR code is found */ }
+            } catch { /* keep the preview running while scanning */ }
           }
         }
         if (cameraStreamRef.current) scannerFrameRef.current = window.requestAnimationFrame(() => void scan());
@@ -309,15 +327,20 @@ export function CustomerOrder({ qr }: { qr: string }) {
       }, { onConflict: "user_id" });
       if (contactError) throw new Error("تعذر حفظ رقم الجوال بشكل آمن: " + contactError.message);
 
-      if (!scannedQr) {
-        if (active) setMessage("تم التحقق من بياناتك. امسح الآن رمز QR المثبت على الطاولة من داخل المطعم.");
+      const { data: availableTables, error: tablesError } = await supabase.rpc("list_customer_tables");
+      if (tablesError) throw tablesError;
+      if (active) setTableChoices((availableTables ?? []) as CustomerTable[]);
+
+      const selectedQr = scannedQr ?? extractQrToken(qr);
+      if (!selectedQr) {
+        if (active) setMessage("تم التحقق من بياناتك. اختر طاولة متاحة من القائمة أو امسح رمز QR المثبت عليها.");
         return;
       }
 
-      let tableQrToken = scannedQr;
-      if (/^\\d{1,4}$/.test(scannedQr)) {
+      let tableQrToken = selectedQr;
+      if (/^\d{1,4}$/.test(selectedQr)) {
         const { data: numberedTable, error: numberError } = await supabase.rpc("resolve_table_number", {
-          p_table_number: Number(scannedQr),
+          p_table_number: Number(selectedQr),
         });
         if (numberError || !numberedTable?.length) throw new Error("رقم الطاولة غير موجود. تأكد من الرقم الموجود على الطاولة.");
         tableQrToken = numberedTable[0].qr_token as string;
@@ -370,7 +393,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
     });
 
     return () => { active = false; };
-  }, [phone, birthYear, scannedQr, refreshSession, supabase]);
+  }, [phone, birthYear, scannedQr, qr, refreshSession, supabase]);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("customer-product-layout");
@@ -732,7 +755,26 @@ export function CustomerOrder({ qr }: { qr: string }) {
           <video ref={videoRef} playsInline muted aria-label="كاميرا مسح رمز الطاولة" />
           {!cameraActive && <div><span><ScanLine size={34}/></span><strong>الكاميرا جاهزة للمسح</strong><small>سنستخدم الكاميرا الخلفية لقراءة رقم الطاولة</small></div>}
         </div>
-        <button className="action-button customer-qr-start" type="button" onClick={() => void startQrScanner()} disabled={cameraActive}><ScanLine size={18}/> {cameraActive ? "وجّه الكاميرا إلى الرمز" : "فتح الكاميرا ومسح الطاولة"}</button>
+        <button className="action-button customer-qr-start" type="button" onClick={() => cameraActive ? stopQrScanner() : void startQrScanner()}><ScanLine size={18}/> {cameraActive ? "إيقاف الكاميرا" : "فتح الكاميرا ومسح الطاولة"}</button>
+        <section className="customer-table-picker" aria-label="قائمة الطاولات">
+          <div className="customer-table-picker-heading"><div><strong>اختر رقم الطاولة</strong><small>المتاح يمكن اختياره، والمشغول يظهر رقمه ولا يمكن اختياره</small></div><span>{tableChoices.filter((table) => table.status === "available").length} متاحة</span></div>
+          <div className="customer-table-picker-grid">
+            {tableChoices.map((table) => {
+              const available = table.status === "available";
+              const label = available ? "متاحة" : table.status === "occupied" ? "مشغولة" : "خارج الخدمة";
+              return (
+                <button key={table.table_number} type="button" disabled={!available}
+                  className={"customer-table-choice " + (available ? "available" : "unavailable")}
+                  onClick={() => { setScannedQr(String(table.table_number)); setLoading(true); setMessage("تم اختيار الطاولة " + table.table_number + "، جارٍ تأكيد الحجز..."); }}>
+                  <strong>طاولة {table.table_number}</strong>
+                  <span>{label}</span>
+                  <small>{table.seats} مقاعد</small>
+                </button>
+              );
+            })}
+          </div>
+          {!tableChoices.length && <p className="customer-table-picker-empty">لا توجد طاولات مسجلة حالياً.</p>}
+        </section>
         <form className="customer-phone-form customer-qr-fallback" onSubmit={(event) => {
           event.preventDefault();
           const token = extractQrToken(qrInput);
