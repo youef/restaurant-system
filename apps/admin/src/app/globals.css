@@ -16,3 +16,15 @@
 .category-edit-fields{display:grid;grid-template-columns:repeat(2,minmax(120px,1fr));gap:7px;width:100%}
 .category-edit-fields input{min-width:0;min-height:36px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;font:inherit}
 @media(max-width:760px){.category-edit-fields{grid-template-columns:1fr}}
+
+
+/* Admin terminal interaction and responsive data tables */
+html,body{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%;overscroll-behavior:contain}
+body{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+input,textarea,select,[contenteditable=true]{user-select:text;-webkit-user-select:text}
+.admin-kpi-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.table-scroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.admin-table{min-width:680px}
+.admin-table button,.admin-table select{min-height:40px}
+.admin-panel,.admin-product-card,.admin-kpi-grid article{min-width:0}
+@media(max-width:760px){.module-heading{align-items:flex-start;flex-direction:column}.report-controls{width:100%;flex-wrap:wrap}.report-controls select{flex:1}.admin-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-main{padding-bottom:36px}}
