@@ -467,3 +467,71 @@ button{touch-action:manipulation;cursor:pointer}
     border-radius:22px!important;
   }
 }
+
+
+/* Unified rounded-corner system across the customer ordering experience */
+.customer-app{
+  --customer-radius-card:22px;
+  --customer-radius-control:15px;
+  --customer-radius-sheet:26px;
+  --customer-radius-nav:22px;
+}
+.customer-app .customer-header,
+.customer-app .menu-card-view .product-card,
+.customer-app .menu-list-view .product-card,
+.customer-app .cart-line,
+.customer-app .quote-summary,
+.customer-app .guest-order-card,
+.customer-app .thanks-panel,
+.customer-app .empty-state,
+.customer-app .feedback,
+.customer-app .offline-banner{
+  border-radius:var(--customer-radius-card)!important;
+}
+.customer-app .customer-tabs{
+  border-radius:var(--customer-radius-nav)!important;
+}
+.customer-app .product-detail-sheet{
+  border-radius:var(--customer-radius-sheet) var(--customer-radius-sheet) 0 0!important;
+  overflow:hidden;
+}
+.customer-app .product-detail-close{
+  border-radius:50%!important;
+}
+.customer-app .product-add,
+.customer-app .unavailable-chip,
+.customer-app .bill-button,
+.customer-app .send-order,
+.customer-app .action-button,
+.customer-app .quantity-controls button,
+.customer-app .item-note input,
+.customer-app .menu-search-wrap,
+.customer-app .menu-search,
+.customer-app .product-view-switch,
+.customer-app .product-view-switch button,
+.customer-app .customer-tabs button{
+  border-radius:var(--customer-radius-control)!important;
+}
+.customer-app .category-strip button,
+.customer-app .connection-state,
+.customer-app .table-chip,
+.customer-app .product-station-chip,
+.customer-app .product-featured-badge,
+.customer-app .product-featured-label,
+.customer-app .tab-count{
+  border-radius:999px!important;
+}
+.customer-app .product-details-trigger{
+  border-radius:var(--customer-radius-card)!important;
+  overflow:hidden!important;
+}
+@media(min-width:700px){
+  .customer-app .product-detail-sheet{
+    border-radius:var(--customer-radius-sheet)!important;
+  }
+}
+@media(max-width:699px){
+  .customer-app .customer-tabs{
+    border-radius:var(--customer-radius-nav)!important;
+  }
+}
