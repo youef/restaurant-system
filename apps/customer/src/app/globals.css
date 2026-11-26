@@ -758,3 +758,19 @@ body {
 .customer-notification-card button{flex:0 0 auto;min-height:40px;padding:0 14px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-size:.78rem;font-weight:900}
 .customer-notification-card button:disabled{opacity:.6}
 @media(max-width:480px){.customer-notification-card{align-items:flex-start;padding:12px}.customer-notification-card button{min-height:36px;padding:0 10px}}
+
+/* QR table entry and camera scanner */
+.customer-qr-onboarding{max-width:620px;margin-inline:auto}
+.customer-qr-camera{position:relative;display:grid;place-items:center;min-height:230px;overflow:hidden;border:1px dashed color-mix(in srgb,var(--accent) 38%,var(--line));border-radius:24px;background:#181512;color:#fff}
+.customer-qr-camera video{display:block;width:100%;max-height:360px;aspect-ratio:4/3;object-fit:cover}
+.customer-qr-camera:not(.active) video{display:none}
+.customer-qr-camera>div{display:grid;justify-items:center;gap:10px;padding:25px;text-align:center}
+.customer-qr-camera>div span{display:grid;place-items:center;width:68px;height:68px;border:1px solid rgba(255,255,255,.2);border-radius:22px;background:rgba(255,255,255,.08);color:#fff}
+.customer-qr-camera>div strong{font-size:.95rem}
+.customer-qr-camera>div small{color:rgba(255,255,255,.68);font-size:.75rem}
+.customer-qr-start{display:flex;align-items:center;justify-content:center;gap:9px;min-height:54px}
+.customer-qr-start:disabled{opacity:.7}
+.customer-qr-fallback{padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--surface)}
+.customer-qr-fallback label{font-size:.78rem}
+.customer-qr-fallback input{min-height:48px;font-size:.88rem;letter-spacing:0}
+.customer-qr-fallback .action-button{min-height:46px}
