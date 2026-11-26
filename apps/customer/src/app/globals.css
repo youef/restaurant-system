@@ -600,3 +600,21 @@ button{touch-action:manipulation;cursor:pointer}
  .customer-app .cart-lines{grid-template-columns:1fr 1fr}
  .customer-app .cart-summary-card,.customer-app .cart-checkout-area{grid-column:1/-1}
 }
+
+
+/* Checkout payment method selection */
+.checkout-payment-card{margin:16px 0;padding:20px;border:1px solid #eee7e2;border-radius:22px;background:linear-gradient(145deg,#fff 0%,#fffaf7 100%);box-shadow:0 8px 24px rgba(36,25,19,.035)}
+.checkout-payment-heading h3{margin:5px 0;font-size:1.15rem}
+.checkout-payment-heading p{margin:0;color:var(--muted);font-size:.84rem;line-height:1.7}
+.checkout-payment-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px}
+.checkout-payment-option{display:flex;align-items:center;gap:10px;min-width:0;padding:13px;border:1px solid #eee7e2;border-radius:16px;background:#fff;color:var(--ink);text-align:right;transition:border-color .18s,background .18s,box-shadow .18s}
+.checkout-payment-option.selected{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 6%,#fff);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 10%,transparent)}
+.checkout-payment-icon{display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;border-radius:13px;background:#f8eee9;color:var(--accent)}
+.checkout-payment-option>span:nth-child(2){display:grid;gap:4px;min-width:0;flex:1}
+.checkout-payment-option strong{font-size:.88rem}
+.checkout-payment-option small{color:var(--muted);font-size:.73rem;line-height:1.5}
+.checkout-payment-option i{display:grid;place-items:center;flex:0 0 22px;width:22px;height:22px;border:1px solid var(--line);border-radius:50%;color:#fff;font-style:normal}
+.checkout-payment-option.selected i{border-color:var(--accent);background:var(--accent)}
+.checkout-payment-note{margin:12px 2px 0;color:var(--muted);font-size:.75rem;line-height:1.7}
+.guest-order-payment{display:inline-flex;align-items:center;gap:6px;margin:8px 0 0;padding:6px 10px;border-radius:99px;background:#f8f3ef;color:var(--muted);font-size:.75rem;font-weight:800}
+@media(max-width:520px){.checkout-payment-options{grid-template-columns:1fr}.checkout-payment-card{padding:16px;border-radius:18px}.checkout-payment-option{min-height:72px}}
