@@ -51,7 +51,9 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const [cart, setCart] = useState<Record<string, CartLine>>({});
   const [quote, setQuote] = useState<Quote | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");
-  const [orderFilter, setOrderFilter] = useState<"all" | "active" | "completed" | "rejected">("all");\n  const [expandedOrders, setExpandedOrders] = useState<string[]>([]);\n  const [refreshingOrders, setRefreshingOrders] = useState(false);
+  const [orderFilter, setOrderFilter] = useState<"all" | "active" | "completed" | "rejected">("all");
+  const [expandedOrders, setExpandedOrders] = useState<string[]>([]);
+  const [refreshingOrders, setRefreshingOrders] = useState(false);
   const [activeCategory, setActiveCategory] = useState("all");
   const [productLayout, setProductLayout] = useState<"grid" | "list">("grid");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -604,7 +606,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
               {billRequest?.status === "acknowledged" && <p className="bill-status"><Check size={16}/> اطّلع النادل على طلب الحساب، وسيأتي إليك قريباً.</p>}
               <button className="bill-button orders-bill-button" disabled={busy || !!billRequest || !online || !orders.length || sessionStatus === "closed"} onClick={() => void requestBill()}>{billRequest ? <><Check size={18}/> تم طلب الحساب</> : <>اطلب النادل للدفع <ArrowLeft size={17}/></>}</button>
             </section>
-          )}}
+          )}
         </>
       )}
     </main>
