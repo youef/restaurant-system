@@ -296,6 +296,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
       p_session_id: sessionId,
       p_items: cartItems,
       p_notes: null,
+      p_payment_method: paymentMethod,
     });
     setBusy(false);
     if (error) {
