@@ -51,6 +51,20 @@ function base64UrlToUint8Array(value: string) {
   const raw = window.atob(base64);
   return Uint8Array.from(raw, (character) => character.charCodeAt(0));
 }
+type QrDetector = { detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>> };
+type QrDetectorConstructor = new (options: { formats: string[] }) => QrDetector;
+function extractQrToken(value: string) {
+  const raw = value.trim();
+  const uuid = raw.match(/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i)?.[0];
+  if (uuid) return uuid;
+  try {
+    const parsed = new URL(raw);
+    const parts = parsed.pathname.split("/").filter(Boolean);
+    const tableIndex = parts.findIndex((part) => part.toLowerCase() === "t");
+    if (tableIndex >= 0 && parts[tableIndex + 1]) return extractQrToken(parts[tableIndex + 1]);
+  } catch { /* raw QR content may not be a URL */ }
+  return null;
+}
 export function CustomerOrder({ qr }: { qr: string }) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const [tableNumber, setTableNumber] = useState<number | null>(null);
@@ -59,6 +73,12 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const [birthYear, setBirthYear] = useState("");
   const [birthYearInput, setBirthYearInput] = useState("");
   const [customerId, setCustomerId] = useState<string | null>(null);
+  const [scannedQr, setScannedQr] = useState<string | null>(null);
+  const [qrInput, setQrInput] = useState("");
+  const [cameraActive, setCameraActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
+  const scannerFrameRef = useRef<number | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">("default");
   const [notificationsBusy, setNotificationsBusy] = useState(false);
   const [pushReady, setPushReady] = useState(false);
@@ -87,6 +107,61 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [online, setOnline] = useState(true);
+
+  function stopQrScanner() {
+    if (scannerFrameRef.current !== null) window.cancelAnimationFrame(scannerFrameRef.current);
+    scannerFrameRef.current = null;
+    cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+    cameraStreamRef.current = null;
+    setCameraActive(false);
+  }
+
+  async function startQrScanner() {
+    const Detector = (window as unknown as { BarcodeDetector?: QrDetectorConstructor }).BarcodeDetector;
+    if (!Detector) {
+      setMessage("المتصفح لا يدعم المسح المباشر داخل الصفحة. استخدم كاميرا الجهاز لقراءة رمز الطاولة، ثم الصق رابط الرمز في الحقل أدناه.");
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setMessage("تعذر الوصول إلى الكاميرا. تحقق من أذونات الموقع أو استخدم رابط QR.");
+      return;
+    }
+    try {
+      stopQrScanner();
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+      cameraStreamRef.current = stream;
+      const video = videoRef.current;
+      if (!video) throw new Error("تعذر تشغيل نافذة الكاميرا.");
+      video.srcObject = stream;
+      await video.play();
+      setCameraActive(true);
+      const detector = new Detector({ formats: ["qr_code"] });
+      const scan = async () => {
+        if (!cameraStreamRef.current || !videoRef.current) return;
+        try {
+          const codes = await detector.detect(videoRef.current);
+          const token = codes[0]?.rawValue ? extractQrToken(codes[0].rawValue) : null;
+          if (token) {
+            stopQrScanner();
+            setScannedQr(token);
+            setLoading(true);
+            setMessage("تمت قراءة الرمز، جارٍ التحقق من توفر الطاولة...");
+            return;
+          }
+        } catch { /* keep scanning while the camera is active */ }
+        if (cameraStreamRef.current) scannerFrameRef.current = window.requestAnimationFrame(() => void scan());
+      };
+      void scan();
+    } catch (error) {
+      stopQrScanner();
+      setMessage(error instanceof Error ? error.message : "تعذر فتح الكاميرا. اسمح للمتصفح باستخدام الكاميرا ثم أعد المحاولة.");
+    }
+  }
+
+  useEffect(() => () => {
+    if (scannerFrameRef.current !== null) window.cancelAnimationFrame(scannerFrameRef.current);
+    cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
 
   const refreshSession = useCallback(async (id: string, profileId: string) => {
     const [orderResult, sessionResult, billResult] = await Promise.all([
@@ -175,13 +250,18 @@ export function CustomerOrder({ qr }: { qr: string }) {
       }, { onConflict: "user_id" });
       if (contactError) throw new Error("تعذر حفظ رقم الجوال بشكل آمن: " + contactError.message);
 
-      const { data: resolved, error: resolveError } = await supabase.rpc("resolve_table", { p_qr: qr });
+      if (!scannedQr) {
+        if (active) setMessage("تم التحقق من بياناتك. امسح الآن رمز QR المثبت على الطاولة من داخل المطعم.");
+        return;
+      }
+
+      const { data: resolved, error: resolveError } = await supabase.rpc("resolve_table", { p_qr: scannedQr });
       if (resolveError || !resolved?.length) throw new Error("رمز الطاولة غير صحيح أو لم يعد متاحاً.");
       const table = resolved[0] as { table_number: number; status: string };
-      if (table.status === "out_of_service") throw new Error("هذه الطاولة غير متاحة حالياً.");
+      if (table.status === "out_of_service") throw new Error("هذه الطاولة خارج الخدمة حالياً.");
       if (active) setTableNumber(table.table_number);
 
-      const { data: joined, error: joinError } = await supabase.rpc("join_table_session", { p_qr: qr });
+      const { data: joined, error: joinError } = await supabase.rpc("join_table_session", { p_qr: scannedQr });
       if (joinError || !joined) throw new Error(joinError?.message ?? "تعذر فتح جلسة الطاولة.");
       const id = joined as string;
       if (!active) return;
@@ -210,6 +290,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
       if (active) {
         const errorMessage = error instanceof Error ? error.message : "تعذر تحميل القائمة.";
         setMessage(errorMessage);
+        setScannedQr(null);
         if (errorMessage.includes("سنة الميلاد") || errorMessage.includes("المحاولة مؤقتاً")) {
           setPhone("");
           setCustomerId(null);
@@ -222,7 +303,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
     });
 
     return () => { active = false; };
-  }, [phone, birthYear, qr, refreshSession, supabase]);
+  }, [phone, birthYear, scannedQr, refreshSession, supabase]);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("customer-product-layout");
@@ -346,6 +427,14 @@ export function CustomerOrder({ qr }: { qr: string }) {
       void supabase.removeChannel(channel);
     };
   }, [customerId, refreshSession, sessionId, supabase]);
+
+  useEffect(() => {
+    if (!sessionId || sessionStatus === "closed" || orders.some((order) => order.session_id === sessionId)) return;
+    const heartbeat = () => { void supabase.rpc("touch_table_reservation", { p_session_id: sessionId }); };
+    heartbeat();
+    const timer = window.setInterval(heartbeat, 60_000);
+    return () => window.clearInterval(timer);
+  }, [orders, sessionId, sessionStatus, supabase]);
 
   const cartItems = useMemo(() => Object.entries(cart).map(([product_id, line]) => ({
     product_id,
@@ -566,7 +655,32 @@ export function CustomerOrder({ qr }: { qr: string }) {
   }
 
   if (!sessionId) {
-    return <main className="customer-landing" dir="rtl"><span className="eyebrow">منصة الطلب</span><h1>تعذر فتح الطاولة</h1><p>{message}</p><button className="action-button" onClick={() => window.location.reload()}>إعادة المحاولة</button></main>;
+    return (
+      <main className="customer-landing customer-onboarding customer-qr-onboarding" dir="rtl">
+        <span className="eyebrow">تم التحقق من بيانات العميل</span>
+        <h1>امسح رمز<br/><em>طاولتك.</em></h1>
+        <p>افتح الكاميرا وامسح رمز QR المثبت على الطاولة التي تجلس عليها. نتحقق من توفرها قبل فتح القائمة.</p>
+        {message && <p className="customer-onboarding-error" role="status">{message}</p>}
+        <div className={"customer-qr-camera " + (cameraActive ? "active" : "")}>
+          <video ref={videoRef} playsInline muted aria-label="كاميرا مسح رمز الطاولة" />
+          {!cameraActive && <div><span><ScanLine size={34}/></span><strong>الكاميرا جاهزة للمسح</strong><small>اسمح باستخدام الكاميرا عند الطلب</small></div>}
+        </div>
+        <button className="action-button customer-qr-start" type="button" onClick={() => void startQrScanner()} disabled={cameraActive}><ScanLine size={18}/> {cameraActive ? "وجّه الكاميرا إلى الرمز" : "فتح الكاميرا ومسح الطاولة"}</button>
+        <form className="customer-phone-form customer-qr-fallback" onSubmit={(event) => {
+          event.preventDefault();
+          const token = extractQrToken(qrInput);
+          if (!token) { setMessage("الرابط أو رمز QR غير صحيح. استخدم رابط الطاولة الكامل."); return; }
+          setScannedQr(token);
+          setLoading(true);
+          setMessage("تم إدخال الرمز، جارٍ التحقق من توفر الطاولة...");
+        }}>
+          <label htmlFor="customer-qr-link">بديل عند عدم دعم الكاميرا: رابط QR</label>
+          <input id="customer-qr-link" dir="ltr" inputMode="url" placeholder="الصق رابط الطاولة أو رمزها" value={qrInput} onChange={(event) => setQrInput(event.target.value)} />
+          <button className="action-button" type="submit">التحقق من الطاولة <ArrowLeft size={17}/></button>
+        </form>
+        <small className="customer-privacy-note"><ShieldCheck size={15}/> لا يتم حجز الطاولة إلا بعد التحقق من حالتها. الحجز غير المستخدم ينتهي تلقائياً بعد 10 دقائق، وتتحرر الطاولة بعد إغلاق الحساب.</small>
+      </main>
+    );
   }
 
   return (
