@@ -49,7 +49,8 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [cart, setCart] = useState<Record<string, CartLine>>({});
-  const [quote, setQuote] = useState<Quote | null>(null);\n  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");
   const [activeCategory, setActiveCategory] = useState("all");
   const [productLayout, setProductLayout] = useState<"grid" | "list">("grid");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
