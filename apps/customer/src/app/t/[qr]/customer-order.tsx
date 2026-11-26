@@ -60,6 +60,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const [notificationsBusy, setNotificationsBusy] = useState(false);
   const [pushReady, setPushReady] = useState(false);
   const previousOrderStatuses = useRef<Record<string, string>>({});
+  const audioContextRef = useRef<AudioContext | null>(null);
   const [restaurant, setRestaurant] = useState<RestaurantSettings | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionStatus, setSessionStatus] = useState<"open" | "closed">("open");
@@ -246,6 +247,55 @@ export function CustomerOrder({ qr }: { qr: string }) {
   }, []);
 
   useEffect(() => {
+    if (!orders.length) return;
+    const nextStatuses: Record<string, string> = {};
+    const changed = orders.filter((order) => {
+      nextStatuses[order.id] = order.status;
+      const previous = previousOrderStatuses.current[order.id];
+      return Boolean(previous && previous !== order.status);
+    });
+    previousOrderStatuses.current = nextStatuses;
+    if (!changed.length) return;
+    const latest = changed[0];
+    const statusLabel = ({
+      pending: "تم استلام الطلب",
+      approved: "تم اعتماد الطلب",
+      preparing: "طلبك قيد التحضير",
+      ready: "طلبك جاهز للاستلام",
+      served: "تم تقديم طلبك",
+      paid: "تم إغلاق الحساب",
+      rejected: "تعذر تنفيذ الطلب",
+    } as Record<string, string>)[latest.status] ?? "تحديث جديد على طلبك";
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+      void navigator.serviceWorker.ready.then((registration) =>
+        registration.showNotification("تحديث الطلب #" + latest.order_no, {
+          body: statusLabel,
+          icon: "/icon.svg",
+          badge: "/icon.svg",
+          tag: "order-" + latest.id,
+          renotify: true,
+          silent: false,
+        })
+      ).catch(() => undefined);
+    }
+    const context = audioContextRef.current;
+    if (context && context.state === "running") {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(880, context.currentTime);
+      oscillator.frequency.setValueAtTime(660, context.currentTime + 0.16);
+      gain.gain.setValueAtTime(0.0001, context.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.16, context.currentTime + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.42);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.44);
+    }
+  }, [orders]);
+
+  useEffect(() => {
     if (!sessionId) return;
     let active = true;
     const refresh = () => {
@@ -350,6 +400,11 @@ export function CustomerOrder({ qr }: { qr: string }) {
     try {
       const permission = await Notification.requestPermission();
       setNotificationPermission(permission);
+      if ("AudioContext" in window) {
+        const context = new AudioContext();
+        await context.resume();
+        audioContextRef.current = context;
+      }
       if (permission !== "granted") {
         setMessage(permission === "denied"
           ? "تم رفض الإشعارات. فعّلها من إعدادات الموقع في المتصفح ثم أعد المحاولة."
