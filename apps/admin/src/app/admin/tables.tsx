@@ -84,8 +84,8 @@ export function TableManager() {
                 {table.status === "available" ? "متاحة" : table.status === "occupied" ? "مشغولة" : "خارج الخدمة"}
               </span>
             </div>
-            <a href={baseUrl + "/t/" + table.qr_token} target="_blank" rel="noreferrer" aria-label={"فتح QR طاولة " + table.number}>
-              <QRCodeSVG value={baseUrl + "/t/" + table.qr_token} size={112} />
+            <a href={baseUrl + "/t/" + table.number} target="_blank" rel="noreferrer" aria-label={"فتح QR طاولة " + table.number}>
+              <QRCodeSVG value={baseUrl + "/t/" + table.number} size={112} />
             </a>
             <label>الحالة
               <select disabled={table.status === "occupied"} value={table.status}
