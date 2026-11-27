@@ -818,7 +818,20 @@ export function CustomerOrder({ qr }: { qr: string }) {
               return (
                 <button key={table.table_number} type="button" disabled={!available}
                   className={"customer-table-choice " + (available ? "available" : "unavailable")}
-                  onClick={() => { setScannedQr(String(table.table_number)); setLoading(true); setMessage("تم اختيار الطاولة " + table.table_number + "، جارٍ تأكيد الحجز..."); }}>
+                  onClick={async () => {
+                    setLoading(true);
+                    setMessage("جارٍ فتح رابط الطاولة " + table.table_number + "...");
+                    const { data, error } = await supabase.rpc("resolve_table_number", {
+                      p_table_number: Number(table.table_number),
+                    });
+                    const qrToken = Array.isArray(data) ? data[0]?.qr_token : null;
+                    if (error || !qrToken) {
+                      setLoading(false);
+                      setMessage("تعذر العثور على رابط هذه الطاولة. حدّث الصفحة وحاول مرة أخرى.");
+                      return;
+                    }
+                    window.location.assign("/t/" + encodeURIComponent(String(qrToken)));
+                  }}>
                   <strong>طاولة {table.table_number}</strong>
                   <span>{label}</span>
                   <small>{table.seats} مقاعد</small>
