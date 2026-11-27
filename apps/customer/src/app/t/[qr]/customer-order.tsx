@@ -22,11 +22,12 @@ type OrderItem = {
   notes: string | null; line_total: number; station: string;
 };
 type CartLine = { quantity: number; notes: string };
-type Quote = { subtotal: number; vat_amount: number; total: number };
+type Quote = { subtotal: number; vat_amount: number; total: number; discount_amount?: number };
 type BillRequest = { id: string; status: "requested" | "acknowledged" | "closed" };
 type CustomerTable = { table_number: number; seats: number; status: "available" | "occupied" | "out_of_service" };
 type LoyaltySummary = { points_balance: number; lifetime_points: number; membership_level: string };
 type Coupon = { id: string; code: string; title: string; description: string | null; discount_percent: number | null; discount_amount: number | null };
+type LoyaltyReward = { id: string; title: string; description: string | null; points_cost: number };
 
 const statusSteps = [
   { key: "pending", label: "تم الإرسال" },
@@ -145,12 +146,14 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const [clockTick, setClockTick] = useState(0);
   const [loyalty, setLoyalty] = useState<LoyaltySummary | null>(null);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [rewards,setRewards]=useState<LoyaltyReward[]>([]);
+  const [couponInput,setCouponInput]=useState("");
   const [serviceBusy, setServiceBusy] = useState(false);
 
   useEffect(() => { const timer = window.setInterval(() => setClockTick(v=>v+1), 60000); return () => window.clearInterval(timer); }, []);
 
   useEffect(() => {
-    if (!customerId) { setLoyalty(null); setCoupons([]); return; }
+    if (!customerId) { setLoyalty(null); setCoupons([]); setRewards([]); return; }
     let active=true;
     async function loadLoyaltyAndOffers() {
       const month=Number(birthMonthInput), day=Number(birthDayInput);
@@ -164,14 +167,16 @@ export function CustomerOrder({ qr }: { qr: string }) {
           }
         } catch { /* Hijri calendar support varies by browser; regular offers still load. */ }
       }
-      const [loyaltyResult,couponResult]=await Promise.all([
+      const [loyaltyResult,couponResult,rewardResult]=await Promise.all([
         supabase.rpc("get_my_loyalty_summary"),
-        supabase.from("coupons").select("id,code,title,description,discount_percent,discount_amount").eq("is_active",true).order("created_at",{ascending:false})
+        supabase.from("coupons").select("id,code,title,description,discount_percent,discount_amount").eq("is_active",true).order("created_at",{ascending:false}),
+        supabase.from("loyalty_rewards").select("id,title,description,points_cost").eq("is_active",true).order("points_cost")
       ]);
       if(!active)return;
       const row=Array.isArray(loyaltyResult.data)?loyaltyResult.data[0]:loyaltyResult.data;
       if(!loyaltyResult.error && row) setLoyalty(row as LoyaltySummary);
       if(!couponResult.error) setCoupons((couponResult.data??[]) as Coupon[]);
+      if(!rewardResult.error) setRewards((rewardResult.data??[]) as LoyaltyReward[]);
     }
     void loadLoyaltyAndOffers();
     return ()=>{active=false;};
@@ -628,7 +633,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
       setQuote(row ? {
         subtotal: Number(row.subtotal),
         vat_amount: Number(row.vat_amount),
-        total: Number(row.total),
+        total: Number(row.total),\n        discount_amount: Number(row.discount_amount ?? 0),
       } : null);
       setMessage("");
     }, 180);
@@ -636,7 +641,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [cartItems, sessionId, sessionStatus, supabase]);
+  }, [cartItems, sessionId, sessionStatus, supabase, couponInput]);
 
   const mealHours = restaurant?.meal_period_hours ?? {
     breakfast:{start:"05:00",end:"11:00"}, lunch:{start:"11:00",end:"17:00"}, dinner:{start:"17:00",end:"05:00"}
@@ -994,7 +999,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
       {message && <p className="feedback" role="status">{message}</p>}
       {!online && <p className="offline-banner" role="status">لا يوجد اتصال، تظهر آخر حالة محفوظة وسيعاد الاتصال تلقائياً.</p>}
       <section className="customer-service-panel" aria-label="طلبات الخدمة"><strong>تحتاج شيئاً على الطاولة؟</strong><div><button type="button" disabled={serviceBusy || !online} onClick={()=>void requestService("water")}>💧 ماء</button><button type="button" disabled={serviceBusy || !online} onClick={()=>void requestService("napkins")}>مناديل</button><button type="button" disabled={serviceBusy || !online} onClick={()=>void requestService("cutlery")}>أدوات طعام</button><button type="button" disabled={serviceBusy || !online} onClick={()=>void requestService("waiter")}>🔔 نادِل</button></div></section>
-      {coupons.length>0 && <section className="customer-coupons"><strong>عروض وكوبونات متاحة</strong>{coupons.map(c=><span key={c.id}>{c.title} · <b>{c.code}</b> · {c.discount_percent ? c.discount_percent+"%" : c.discount_amount+" ر.س"}</span>)}</section>}
+      {coupons.length>0 && <section className="customer-coupons"><strong>عروض وكوبونات متاحة</strong>{coupons.map(c=><span key={c.id}>{c.title} · <b>{c.code}</b> · {c.discount_percent ? c.discount_percent+"%" : c.discount_amount+" ر.س"}</span>)}</section>}\n      {rewards.length>0 && <section className="customer-coupons"><strong>استبدل نقاطك بمكافأة</strong>{rewards.map(reward=><span key={reward.id}>{reward.title} · {reward.points_cost} نقطة <button type="button" disabled={!loyalty || loyalty.points_balance<reward.points_cost || busy} onClick={async()=>{setBusy(true);const {data,error}=await supabase.rpc("redeem_loyalty_reward",{p_reward_id:reward.id});setBusy(false);if(error)setMessage(error.message);else{const row=Array.isArray(data)?data[0]:data;setMessage("تم حجز المكافأة: "+row?.reward_title);setLoyalty(current=>current?{...current,points_balance:Number(row?.points_balance??current.points_balance)}:current);}}}>استبدال</button></span>)}</section>}
 
       {sessionStatus === "closed" ? (
         <section className="thanks-panel">
@@ -1152,7 +1157,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
                     <div className="cart-summary-heading"><div><span className="eyebrow">ملخص الدفع</span><h3>تفاصيل الفاتورة</h3></div><span className="cart-secure-label"><Check size={13}/> تسعير دقيق</span></div>
                     <div className="quote-summary">
                       <div><span>المجموع الفرعي</span><strong>{quote ? formatMoney(quote.subtotal) : "—"}</strong></div>
-                      <div><span>ضريبة القيمة المضافة</span><strong>{quote ? formatMoney(quote.vat_amount) : "—"}</strong></div>
+                      {quote?.discount_amount ? <div><span>خصم الكوبون</span><strong>−{formatMoney(quote.discount_amount)}</strong></div> : null}\n                      <div><span>ضريبة القيمة المضافة</span><strong>{quote ? formatMoney(quote.vat_amount) : "—"}</strong></div>
                       <div className="quote-total"><span>الإجمالي شامل الضريبة</span><strong>{quote ? formatMoney(quote.total) : "جارٍ احتساب الإجمالي..."}</strong></div>
                     </div>
                     <p className="cart-summary-footnote">يتم احتساب الإجمالي والضريبة تلقائياً وفق أسعار المطعم.</p>
