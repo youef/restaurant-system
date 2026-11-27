@@ -9,6 +9,7 @@ type Table = { id: string; number: number; seats: number; status: string };
 type Session = { id: string; table_id: string; opened_at: string; customer_exit_requested_at: string | null };
 type Order = { id: string; order_no: number; table_id: string; session_id: string; status: string; subtotal: number; vat_amount: number; total: number; placed_at: string; payment_method: "cash" | "card" };
 type Bill = { id: string; session_id: string; status: string; requested_at: string };
+type ServiceRequest = { id: string; session_id: string; request_type: "water"|"napkins"|"cutlery"|"waiter"; note: string|null; status: string; requested_at: string };
 type Item = { id: string; order_id: string; name_ar: string; quantity: number; unit_price: number; line_total: number; notes: string | null };
 
 export function WaiterBoard() {
@@ -16,7 +17,7 @@ export function WaiterBoard() {
   const [tables, setTables] = useState<Table[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [bills, setBills] = useState<Bill[]>([]);
+  const [bills, setBills] = useState<Bill[]>([]);\n  const [serviceRequests,setServiceRequests]=useState<ServiceRequest[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [method, setMethod] = useState<"cash" | "card">("cash");
@@ -27,7 +28,7 @@ export function WaiterBoard() {
   const orderRevision = useRealtimeRefresh("orders");
   const billRevision = useRealtimeRefresh("bill_requests");
   const tableRevision = useRealtimeRefresh("restaurant_tables");
-  const sessionRevision = useRealtimeRefresh("table_sessions");
+  const sessionRevision = useRealtimeRefresh("table_sessions");\n  const serviceRevision = useRealtimeRefresh("service_requests");
 
   useEffect(() => {
     let active = true;
@@ -44,7 +45,7 @@ export function WaiterBoard() {
       if (tableResult.error) setMessage(tableResult.error.message); else setTables((tableResult.data ?? []) as Table[]);
       if (sessionResult.error) setMessage(sessionResult.error.message); else setSessions((sessionResult.data ?? []) as Session[]);
       if (orderResult.error) setMessage(orderResult.error.message); else setOrders((orderResult.data ?? []) as Order[]);
-      if (billResult.error) setMessage(billResult.error.message); else setBills((billResult.data ?? []) as Bill[]);
+      if (billResult.error) setMessage(billResult.error.message); else setBills((billResult.data ?? []) as Bill[]);\n      const serviceResult = await db.from("service_requests").select("id,session_id,request_type,note,status,requested_at").in("status",["requested","acknowledged"]).order("requested_at");\n      if (serviceResult.error) setMessage(serviceResult.error.message); else setServiceRequests((serviceResult.data ?? []) as ServiceRequest[]);
       const ids = (orderResult.data ?? []).map((order) => order.id);
       if (ids.length) {
         const { data, error } = await db.from("order_items").select("id,order_id,name_ar,quantity,unit_price,line_total,notes").in("order_id", ids);
@@ -53,7 +54,7 @@ export function WaiterBoard() {
     }
     void load();
     return () => { active = false; };
-  }, [orderRevision, billRevision, tableRevision, sessionRevision, refreshTick]);
+  }, [orderRevision, billRevision, tableRevision, sessionRevision, serviceRevision, refreshTick]);
 
   const tableNumbers = useMemo(() => new Map(tables.map((table) => [table.id, table.number])), [tables]);
   const sessionTable = useMemo(() => new Map(sessions.map((session) => [session.id, tableNumbers.get(session.table_id) ?? 0])), [sessions, tableNumbers]);
@@ -77,7 +78,7 @@ export function WaiterBoard() {
     else setOrders((current) => current.map((item) => item.id === order.id ? { ...item, status: "served" } : item));
   }
 
-  async function acknowledge(bill: Bill) {
+  async function updateServiceRequest(request:ServiceRequest,status:"acknowledged"|"completed") {\n    setBusy(true);\n    const patch = status==="acknowledged" ? {status,acknowledged_at:new Date().toISOString()} : {status,completed_at:new Date().toISOString()};\n    const {error}=await getSupabaseBrowserClient().from("service_requests").update(patch).eq("id",request.id);\n    setBusy(false);\n    if(error) setMessage(error.message); else setServiceRequests(rows=>rows.filter(row=>row.id!==request.id));\n  }\n\n  async function acknowledge(bill: Bill) {
     setBusy(true);
     const { error } = await getSupabaseBrowserClient().rpc("acknowledge_bill", { p_request_id: bill.id });
     setBusy(false);
@@ -111,13 +112,13 @@ export function WaiterBoard() {
   return (
     <section className="waiter-app" dir="rtl">
       <nav className="waiter-tabs">
-        <button aria-pressed={view === "tasks"} onClick={() => setView("tasks")}>المهام ({bills.length + orders.filter((order) => order.status === "ready").length})</button>
+        <button aria-pressed={view === "tasks"} onClick={() => setView("tasks")}>المهام ({bills.length + serviceRequests.length + orders.filter((order) => order.status === "ready").length})</button>
         <button aria-pressed={view === "tables"} onClick={() => setView("tables")}>الطاولات ({sessions.length})</button>
         <button className="waiter-refresh" onClick={() => setRefreshTick((value) => value + 1)}>تحديث البيانات</button>
       </nav>
       {message && <p className="feedback" role="status">{message}</p>}
       {view === "tasks" ? (
-        <div className="waiter-task-list">
+        <div className="waiter-task-list">\n          <section className="queue-panel"><div className="section-title"><h2>طلبات الخدمة السريعة</h2><span>{serviceRequests.length}</span></div>\n            {serviceRequests.map(request=><article className="waiter-task-card" key={request.id}><div><strong>طاولة {sessionTable.get(request.session_id) ?? "—"} · {({water:"ماء",napkins:"مناديل",cutlery:"أدوات طعام",waiter:"طلب النادل"} as Record<string,string>)[request.request_type]}</strong>{request.note&&<p>{request.note}</p>}<small>{formatDateTime(request.requested_at)}</small></div><div className="record-actions">{request.status==="requested"&&<button className="action-button secondary" disabled={busy} onClick={()=>void updateServiceRequest(request,"acknowledged")}>استلام</button>}<button className="action-button" disabled={busy} onClick={()=>void updateServiceRequest(request,"completed")}>إكمال</button></div></article>)}\n            {!serviceRequests.length&&<div className="empty-state">لا توجد طلبات خدمة جديدة.</div>}\n          </section>
           <section className="queue-panel">
             <div className="section-title"><h2>طلبات الحساب</h2><span>{bills.length}</span></div>
             {bills.map((bill) => (
