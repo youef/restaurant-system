@@ -7,7 +7,7 @@ import { formatMoney, formatDateTime } from "@restaurant/i18n";
 
 type Table = { id: string; number: number; seats: number; status: string };
 type Session = { id: string; table_id: string; opened_at: string; customer_exit_requested_at: string | null };
-type Order = { id: string; order_no: number; table_id: string; session_id: string; status: string; subtotal: number; vat_amount: number; total: number; placed_at: string; payment_method: "cash" | "card" };
+type Order = { id: string; order_no: number; table_id: string; session_id: string; status: string; subtotal: number; vat_amount: number; total: number; discount_amount: number; coupon_code: string | null; placed_at: string; payment_method: "cash" | "card" };
 type Bill = { id: string; session_id: string; status: string; requested_at: string };
 type ServiceRequest = { id: string; session_id: string; request_type: "water"|"napkins"|"cutlery"|"waiter"; note: string|null; status: string; requested_at: string };
 type Item = { id: string; order_id: string; name_ar: string; quantity: number; unit_price: number; line_total: number; notes: string | null };
@@ -39,7 +39,7 @@ export function WaiterBoard() {
       const [tableResult, sessionResult, orderResult, billResult] = await Promise.all([
         db.from("restaurant_tables").select("id,number,seats,status").order("number"),
         db.from("table_sessions").select("id,table_id,opened_at,customer_exit_requested_at").eq("status", "open"),
-        db.from("orders").select("id,order_no,table_id,session_id,status,subtotal,vat_amount,total,placed_at,payment_method").neq("status", "paid"),
+        db.from("orders").select("id,order_no,table_id,session_id,status,subtotal,vat_amount,total,discount_amount,coupon_code,placed_at,payment_method").neq("status", "paid"),
         db.from("bill_requests").select("id,session_id,status,requested_at")
           .in("status", ["requested", "acknowledged"]).order("requested_at"),
       ]);
@@ -197,6 +197,7 @@ export function WaiterBoard() {
                 </article>
               ))}
               <div><span>قبل الضريبة</span><b>{formatMoney(billSubtotal)}</b></div>
+              {billableOrders.some(order=>Number(order.discount_amount)>0) && <div><span>خصم الكوبون</span><b>−{formatMoney(billableOrders.reduce((sum,order)=>sum+Number(order.discount_amount||0),0))}</b></div>}
               <div><span>ضريبة القيمة المضافة</span><b>{formatMoney(billVat)}</b></div>
               <div className="waiter-invoice-grand"><span>الإجمالي شامل الضريبة</span><b>{formatMoney(billTotal)}</b></div>
             </section>
