@@ -347,7 +347,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
       const { error: contactError } = await supabase.from("customer_contacts").upsert({
         user_id: guestUser.id,
         phone_e164: phoneToE164(phone),
-      }, { onConflict: "user_id" });
+      }, { onConflict: "user_id", ignoreDuplicates: true });
       if (contactError) throw new Error("تعذر حفظ رقم الجوال بشكل آمن: " + contactError.message);
 
       const selectedQr = scannedQr ?? extractQrToken(qr);
