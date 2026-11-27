@@ -224,7 +224,8 @@ export function MenuManager() {
               <label>اسم المنتج بالعربية<input value={draft.name_ar} onChange={(event) => setDraft({ ...draft, name_ar: event.target.value })} required maxLength={120} /></label>
               <label>English name<input dir="ltr" value={draft.name_en} onChange={(event) => setDraft({ ...draft, name_en: event.target.value })} /></label>
               <label>السعر (ريال)<input type="number" min="0" step="0.01" value={draft.price} onChange={(event) => setDraft({ ...draft, price: event.target.value })} required /></label>
-              <label>فترة تقديم المنتج<select value={draft.meal_period} onChange={(event) => setDraft({ ...draft, meal_period: event.target.value as Product["meal_period"] })}><option value="all">كل الأوقات</option><option value="breakfast">الإفطار</option><option value="lunch">الغداء</option><option value="dinner">العشاء</option></select></label>\n              <label>نوع المنتج / محطة التحضير<select value={draft.station} onChange={(event) => setDraft({ ...draft, station: event.target.value as Product["station"] })}>
+              <label>فترة تقديم المنتج<select value={draft.meal_period} onChange={(event) => setDraft({ ...draft, meal_period: event.target.value as Product["meal_period"] })}><option value="all">كل الأوقات</option><option value="breakfast">الإفطار</option><option value="lunch">الغداء</option><option value="dinner">العشاء</option></select></label>
+              <label>نوع المنتج / محطة التحضير<select value={draft.station} onChange={(event) => setDraft({ ...draft, station: event.target.value as Product["station"] })}>
                 {Object.entries(stationLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select></label>
               <label>ترتيب العرض<input type="number" value={draft.sort_order} onChange={(event) => setDraft({ ...draft, sort_order: event.target.value })} /></label>
