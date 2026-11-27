@@ -20,7 +20,10 @@ export function OperationsManager() {
   const [rate,setRate] = useState("1");
   const [birthdayDiscount,setBirthdayDiscount]=useState("15");
   const [products,setProducts] = useState<Product[]>([]);
-  const [waste,setWaste] = useState<Waste[]>([]);\n  const [redemptions,setRedemptions]=useState<RewardRedemption[]>([]);\n  const [coupons,setCoupons]=useState<Coupon[]>([]);\n  const [rewards,setRewards]=useState<Reward[]>([]);
+  const [waste,setWaste] = useState<Waste[]>([]);
+  const [redemptions,setRedemptions]=useState<RewardRedemption[]>([]);
+  const [coupons,setCoupons]=useState<Coupon[]>([]);
+  const [rewards,setRewards]=useState<Reward[]>([]);
   const [productId,setProductId] = useState("");
   const [quantity,setQuantity] = useState("1");
   const [unit,setUnit] = useState("حبة");
@@ -47,7 +50,10 @@ export function OperationsManager() {
       setBirthdayDiscount(String(settingsResult.data.birthday_discount_percent ?? 15));
     }
     if (productResult.error) setMessage(productResult.error.message); else setProducts((productResult.data ?? []) as Product[]);
-    if (wasteResult.error) setMessage(wasteResult.error.message); else setWaste((wasteResult.data ?? []) as Waste[]);\n    if (couponResult.error) setMessage(couponResult.error.message); else setCoupons((couponResult.data ?? []) as Coupon[]);\n    if (rewardResult.error) setMessage(rewardResult.error.message); else setRewards((rewardResult.data ?? []) as Reward[]);\n    if (redemptionResult.error) setMessage(redemptionResult.error.message); else setRedemptions((redemptionResult.data ?? []) as RewardRedemption[]);
+    if (wasteResult.error) setMessage(wasteResult.error.message); else setWaste((wasteResult.data ?? []) as Waste[]);
+    if (couponResult.error) setMessage(couponResult.error.message); else setCoupons((couponResult.data ?? []) as Coupon[]);
+    if (rewardResult.error) setMessage(rewardResult.error.message); else setRewards((rewardResult.data ?? []) as Reward[]);
+    if (redemptionResult.error) setMessage(redemptionResult.error.message); else setRedemptions((redemptionResult.data ?? []) as RewardRedemption[]);
   }
   useEffect(() => { void load(); }, []);
 
@@ -79,7 +85,19 @@ export function OperationsManager() {
     setBusy(false);
     if(error) setMessage(error.message); else { setMessage("تم إنشاء الكوبون. سيظهر للعملاء ضمن العروض."); setCouponCode(""); setCouponTitle(""); await load(); }
   }
-  async function fulfillReward(id:string) {\n    setBusy(true); const {error}=await db.rpc("fulfill_loyalty_redemption",{p_redemption_id:id}); setBusy(false);\n    if(error) setMessage(error.message); else {setMessage("تم تأكيد تسليم المكافأة."); await load();}\n  }\n  async function toggleCoupon(coupon:Coupon) {\n    setBusy(true); const {error}=await db.from("coupons").update({is_active:!coupon.is_active}).eq("id",coupon.id); setBusy(false);\n    if(error) setMessage(error.message); else await load();\n  }\n  async function toggleReward(reward:Reward) {\n    setBusy(true); const {error}=await db.from("loyalty_rewards").update({is_active:!reward.is_active}).eq("id",reward.id); setBusy(false);\n    if(error) setMessage(error.message); else await load();\n  }\n  async function addReward(event: React.FormEvent<HTMLFormElement>) {
+  async function fulfillReward(id:string) {
+    setBusy(true); const {error}=await db.rpc("fulfill_loyalty_redemption",{p_redemption_id:id}); setBusy(false);
+    if(error) setMessage(error.message); else {setMessage("تم تأكيد تسليم المكافأة."); await load();}
+  }
+  async function toggleCoupon(coupon:Coupon) {
+    setBusy(true); const {error}=await db.from("coupons").update({is_active:!coupon.is_active}).eq("id",coupon.id); setBusy(false);
+    if(error) setMessage(error.message); else await load();
+  }
+  async function toggleReward(reward:Reward) {
+    setBusy(true); const {error}=await db.from("loyalty_rewards").update({is_active:!reward.is_active}).eq("id",reward.id); setBusy(false);
+    if(error) setMessage(error.message); else await load();
+  }
+  async function addReward(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const points=Number(rewardPoints);
     if (!rewardTitle.trim() || !Number.isInteger(points) || points<=0) { setMessage("أدخل اسم المكافأة وعدد نقاط صحيحاً."); return; }
@@ -118,7 +136,11 @@ export function OperationsManager() {
         <button className="action-button" disabled={busy}>إنشاء الكوبون</button>
       </form>
     </div>
-    <section className="admin-panel"><header><h3>إدارة العروض والمكافآت</h3><span>{coupons.length} كوبون · {rewards.length} مكافأة</span></header>\n      <div className="admin-form-grid"><div><h4>الكوبونات</h4>{coupons.map(coupon=><p key={coupon.id}>{coupon.title} · {coupon.code} · {coupon.discount_percent ? coupon.discount_percent+"%" : coupon.discount_amount+" ر.س"} <button type="button" className="small-action" disabled={busy} onClick={()=>void toggleCoupon(coupon)}>{coupon.is_active?"إيقاف":"تفعيل"}</button></p>)}</div><div><h4>المكافآت</h4>{rewards.map(reward=><p key={reward.id}>{reward.title} · {reward.points_cost} نقطة <button type="button" className="small-action" disabled={busy} onClick={()=>void toggleReward(reward)}>{reward.is_active?"إيقاف":"تفعيل"}</button></p>)}</div></div>\n    </section>\n    <section className="admin-panel"><header><h3>طلبات استبدال النقاط</h3><span>{redemptions.length} بانتظار التسليم</span></header>{redemptions.map(item=><article className="waiter-task-card" key={item.id}><div><strong>{item.reward_title}</strong><p>{item.customer_name} · {item.points_spent} نقطة</p><small>رمز الاستبدال: {item.redemption_code} · {new Date(item.created_at).toLocaleString("ar-SA")}</small></div><button type="button" className="action-button" disabled={busy} onClick={()=>void fulfillReward(item.id)}>تأكيد التسليم</button></article>)}{!redemptions.length&&<p className="muted">لا توجد مكافآت بانتظار التسليم.</p>}</section>\n    <form className="admin-panel" onSubmit={e=>void addWaste(e)}>
+    <section className="admin-panel"><header><h3>إدارة العروض والمكافآت</h3><span>{coupons.length} كوبون · {rewards.length} مكافأة</span></header>
+      <div className="admin-form-grid"><div><h4>الكوبونات</h4>{coupons.map(coupon=><p key={coupon.id}>{coupon.title} · {coupon.code} · {coupon.discount_percent ? coupon.discount_percent+"%" : coupon.discount_amount+" ر.س"} <button type="button" className="small-action" disabled={busy} onClick={()=>void toggleCoupon(coupon)}>{coupon.is_active?"إيقاف":"تفعيل"}</button></p>)}</div><div><h4>المكافآت</h4>{rewards.map(reward=><p key={reward.id}>{reward.title} · {reward.points_cost} نقطة <button type="button" className="small-action" disabled={busy} onClick={()=>void toggleReward(reward)}>{reward.is_active?"إيقاف":"تفعيل"}</button></p>)}</div></div>
+    </section>
+    <section className="admin-panel"><header><h3>طلبات استبدال النقاط</h3><span>{redemptions.length} بانتظار التسليم</span></header>{redemptions.map(item=><article className="waiter-task-card" key={item.id}><div><strong>{item.reward_title}</strong><p>{item.customer_name} · {item.points_spent} نقطة</p><small>رمز الاستبدال: {item.redemption_code} · {new Date(item.created_at).toLocaleString("ar-SA")}</small></div><button type="button" className="action-button" disabled={busy} onClick={()=>void fulfillReward(item.id)}>تأكيد التسليم</button></article>)}{!redemptions.length&&<p className="muted">لا توجد مكافآت بانتظار التسليم.</p>}</section>
+    <form className="admin-panel" onSubmit={e=>void addWaste(e)}>
       <header><h3>تسجيل الهدر والتالف والمرتجع</h3><span>سجل تشغيلي</span></header>
       <div className="admin-form-grid">
         <label>الصنف<select value={productId} onChange={e=>setProductId(e.target.value)} required><option value="">اختر صنفاً</option>{products.map(p=><option key={p.id} value={p.id}>{p.name_ar}</option>)}</select></label>
