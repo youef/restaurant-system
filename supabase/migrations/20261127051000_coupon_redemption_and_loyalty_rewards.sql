@@ -173,3 +173,21 @@ returns table(order_id uuid,order_no bigint,subtotal numeric,vat_amount numeric,
 language sql security invoker set search_path=pg_catalog,public,private as $$ select * from private.place_order_with_coupon(p_session_id,p_items,p_notes,p_payment_method,p_coupon_code) $$;
 revoke all on function public.place_order_with_coupon(uuid,jsonb,text,payment_method,text) from public,anon;
 grant execute on function public.place_order_with_coupon(uuid,jsonb,text,payment_method,text) to authenticated;
+
+
+-- Honour a configured zero-points rate instead of forcing a minimum point.
+create or replace function private.award_customer_order_points()
+returns trigger language plpgsql security definer set search_path=pg_catalog,public as $$
+declare v_rate numeric; v_points integer;
+begin
+ if new.status='paid' and old.status is distinct from 'paid' and new.customer_id is not null then
+  select loyalty_points_per_currency into v_rate from public.settings where id=1;
+  v_points:=floor(new.total*coalesce(v_rate,1))::integer;
+  if v_points>0 then
+   insert into public.customer_loyalty_ledger(customer_id,order_id,points)
+   values(new.customer_id,new.id,v_points) on conflict(order_id) do nothing;
+  end if;
+ end if;
+ return new;
+end $$;
+revoke all on function private.award_customer_order_points() from public,anon,authenticated;
