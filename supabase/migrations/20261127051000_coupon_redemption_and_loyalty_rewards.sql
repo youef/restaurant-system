@@ -191,3 +191,71 @@ begin
  return new;
 end $$;
 revoke all on function private.award_customer_order_points() from public,anon,authenticated;
+
+
+create table if not exists public.loyalty_redemption_requests (
+ id uuid primary key default gen_random_uuid(),
+ customer_id uuid not null references public.customer_profiles(id) on delete cascade,
+ reward_id uuid not null references public.loyalty_rewards(id) on delete restrict,
+ points_spent integer not null check(points_spent>0),
+ redemption_code text not null unique default ('RWD-' || upper(substr(replace(gen_random_uuid()::text,'-',''),1,10))),
+ status text not null default 'pending' check(status in ('pending','fulfilled','cancelled')),
+ created_at timestamptz not null default now(),
+ fulfilled_at timestamptz,
+ fulfilled_by uuid references public.profiles(id)
+);
+create index if not exists loyalty_redemption_pending_idx on public.loyalty_redemption_requests(status,created_at desc);
+alter table public.loyalty_redemption_requests enable row level security;
+revoke all on public.loyalty_redemption_requests from anon,authenticated;
+grant select,update on public.loyalty_redemption_requests to authenticated;
+drop policy if exists loyalty_redemptions_customer_read on public.loyalty_redemption_requests;
+create policy loyalty_redemptions_customer_read on public.loyalty_redemption_requests for select to authenticated using (private.is_customer_order_owner(customer_id));
+drop policy if exists loyalty_redemptions_admin_read on public.loyalty_redemption_requests;
+create policy loyalty_redemptions_admin_read on public.loyalty_redemption_requests for select to authenticated using ((select private.current_app_role())='admin');
+drop policy if exists loyalty_redemptions_admin_update on public.loyalty_redemption_requests;
+create policy loyalty_redemptions_admin_update on public.loyalty_redemption_requests for update to authenticated using ((select private.current_app_role())='admin') with check ((select private.current_app_role())='admin');
+
+drop function if exists public.redeem_loyalty_reward(uuid);
+drop function if exists private.redeem_loyalty_reward(uuid);
+create or replace function private.redeem_loyalty_reward(p_reward_id uuid)
+returns table(points_balance bigint,reward_title text,redemption_code text)
+language plpgsql security definer set search_path=pg_catalog,public,private as $$
+declare v_customer_id uuid; v_cost integer; v_title text; v_earned bigint; v_spent bigint; v_code text;
+begin
+ if auth.uid() is null then raise exception 'يلزم تسجيل الدخول'; end if;
+ select id into v_customer_id from public.customer_profiles where auth_user_id=auth.uid() for update;
+ if v_customer_id is null then raise exception 'ملف العميل غير موجود'; end if;
+ select points_cost,title into v_cost,v_title from public.loyalty_rewards where id=p_reward_id and is_active=true;
+ if v_cost is null then raise exception 'المكافأة غير متاحة'; end if;
+ select coalesce(sum(points),0) into v_earned from public.customer_loyalty_ledger where customer_id=v_customer_id;
+ select coalesce(sum(points_spent),0) into v_spent from public.loyalty_redemption_requests where customer_id=v_customer_id and status in ('pending','fulfilled');
+ if v_earned-v_spent<v_cost then raise exception 'رصيد النقاط غير كافٍ'; end if;
+ insert into public.loyalty_redemption_requests(customer_id,reward_id,points_spent) values(v_customer_id,p_reward_id,v_cost) returning loyalty_redemption_requests.redemption_code into v_code;
+ return query select (v_earned-v_spent-v_cost)::bigint,v_title,v_code;
+end $$;
+revoke all on function private.redeem_loyalty_reward(uuid) from public,anon,authenticated;
+grant execute on function private.redeem_loyalty_reward(uuid) to authenticated;
+create or replace function public.redeem_loyalty_reward(p_reward_id uuid)
+returns table(points_balance bigint,reward_title text,redemption_code text)
+language sql security invoker set search_path=pg_catalog,public,private as $$ select * from private.redeem_loyalty_reward(p_reward_id) $$;
+revoke all on function public.redeem_loyalty_reward(uuid) from public,anon;
+grant execute on function public.redeem_loyalty_reward(uuid) to authenticated;
+
+drop function if exists public.get_my_loyalty_summary();
+drop function if exists private.get_my_loyalty_summary();
+create or replace function private.get_my_loyalty_summary()
+returns table(points_balance bigint,lifetime_points bigint,membership_level text)
+language sql stable security definer set search_path=pg_catalog,public,private as $$
+ select greatest(0,coalesce(sum(l.points),0)-coalesce((select sum(r.points_spent) from public.loyalty_redemption_requests r where r.customer_id=cp.id and r.status in ('pending','fulfilled')),0))::bigint,
+        coalesce(sum(l.points),0)::bigint,
+        case when coalesce(sum(l.points),0)>=5000 then 'ذهبي' when coalesce(sum(l.points),0)>=1000 then 'فضي' else 'أساسي' end
+ from public.customer_profiles cp left join public.customer_loyalty_ledger l on l.customer_id=cp.id
+ where cp.auth_user_id=auth.uid() group by cp.id
+$$;
+revoke all on function private.get_my_loyalty_summary() from public,anon,authenticated;
+grant execute on function private.get_my_loyalty_summary() to authenticated;
+create or replace function public.get_my_loyalty_summary()
+returns table(points_balance bigint,lifetime_points bigint,membership_level text)
+language sql stable security invoker set search_path=pg_catalog,public,private as $$ select * from private.get_my_loyalty_summary() $$;
+revoke all on function public.get_my_loyalty_summary() from public,anon;
+grant execute on function public.get_my_loyalty_summary() to authenticated;
