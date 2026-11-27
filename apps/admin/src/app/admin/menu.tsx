@@ -70,7 +70,7 @@ export function MenuManager() {
         description_en: product.description_en ?? "", price: String(product.price),
         station: product.station, is_available: product.is_available, is_active: product.is_active,
         is_featured: product.is_featured, sort_order: String(product.sort_order),
-        image_path: product.image_path,
+        image_path: product.image_path, meal_period: product.meal_period ?? "all",
       });
     }
     setEditing(true);
