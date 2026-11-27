@@ -8,12 +8,14 @@ import { RestaurantSettings } from "./settings";
 import { AdminOverview } from "./overview";
 import { AdminReports } from "./reports";
 import { AuditLog } from "./audit";
+import { OperationsManager } from "./operations";
 
-type Module = "overview" | "tables" | "menu" | "staff" | "reports" | "audit" | "settings";
+type Module = "overview" | "tables" | "menu" | "staff" | "reports" | "audit" | "settings" | "operations";
 const modules: { id: Module; title: string; icon: string }[] = [
   { id: "overview", title: "الرئيسية", icon: "⌂" },
   { id: "tables", title: "الطاولات", icon: "▦" },
   { id: "menu", title: "المنيو", icon: "☷" },
+  { id: "operations", title: "الوجبات والولاء والهدر", icon: "✦" },
   { id: "staff", title: "الموظفون", icon: "♙" },
   { id: "reports", title: "التقارير", icon: "▤" },
   { id: "audit", title: "سجل العمليات", icon: "◷" },
@@ -40,6 +42,7 @@ export function AdminConsole() {
         {active === "overview" && <AdminOverview />}
         {active === "tables" && <TableManager />}
         {active === "menu" && <MenuManager />}
+        {active === "operations" && <OperationsManager />}
         {active === "staff" && <StaffManager />}
         {active === "reports" && <AdminReports />}
         {active === "audit" && <AuditLog />}
