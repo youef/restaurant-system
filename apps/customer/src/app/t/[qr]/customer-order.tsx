@@ -156,7 +156,12 @@ export function CustomerOrder({ qr }: { qr: string }) {
     if (!customerId) { setLoyalty(null); setCoupons([]); setRewards([]); return; }
     let active=true;
     async function loadLoyaltyAndOffers() {
-      const month=Number(birthMonthInput), day=Number(birthDayInput);
+      const {data:birthdayData}=await supabase.rpc("get_my_birthday");
+      const birthdayRow=Array.isArray(birthdayData)?birthdayData[0]:birthdayData;
+      const month=Number(birthMonthInput || birthdayRow?.birth_month_hijri);
+      const day=Number(birthDayInput || birthdayRow?.birth_day_hijri);
+      if (!birthMonthInput && birthdayRow?.birth_month_hijri) setBirthMonthInput(String(birthdayRow.birth_month_hijri));
+      if (!birthDayInput && birthdayRow?.birth_day_hijri) setBirthDayInput(String(birthdayRow.birth_day_hijri));
       if (month && day) {
         try {
           const parts=new Intl.DateTimeFormat("en-u-ca-islamic-umalqura",{timeZone:restaurant?.timezone||"Asia/Riyadh",year:"numeric",month:"numeric",day:"numeric"}).formatToParts(new Date());
