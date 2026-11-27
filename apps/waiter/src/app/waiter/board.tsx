@@ -88,7 +88,7 @@ export function WaiterBoard() {
     const patch = status==="acknowledged" ? {status,acknowledged_at:new Date().toISOString()} : {status,completed_at:new Date().toISOString()};
     const {error}=await getSupabaseBrowserClient().from("service_requests").update(patch).eq("id",request.id);
     setBusy(false);
-    if(error) setMessage(error.message); else setServiceRequests(rows=>rows.filter(row=>row.id!==request.id));
+    if(error) setMessage(error.message); else if(status==="completed") setServiceRequests(rows=>rows.filter(row=>row.id!==request.id)); else setServiceRequests(rows=>rows.map(row=>row.id===request.id?{...row,status}:row));
   }
 
   async function acknowledge(bill: Bill) {
