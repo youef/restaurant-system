@@ -803,3 +803,7 @@ body {
 .customer-visit-actions .action-button.secondary{background:transparent;color:var(--ink);border:1px solid var(--line)}
 .customer-visit-actions button:disabled{opacity:.6;cursor:not-allowed}
 @media(max-width:480px){.customer-visit-actions .action-button{flex:1 1 100%}}
+
+.customer-start-button{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;max-width:360px;min-height:58px;margin:28px 0 18px;padding:0 22px;border:0;border-radius:16px;background:var(--accent);color:#fff;text-decoration:none;font-weight:900;font-size:1.05rem;box-shadow:0 10px 24px rgba(255,107,74,.2);transition:transform .18s ease,filter .18s ease}
+.customer-start-button:hover{filter:brightness(.96);transform:translateY(-2px)}
+.customer-start-button span{font-size:1.35rem}
