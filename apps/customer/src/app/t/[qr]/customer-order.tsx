@@ -619,9 +619,10 @@ export function CustomerOrder({ qr }: { qr: string }) {
     }
     let active = true;
     const timer = window.setTimeout(async () => {
-      const { data, error } = await supabase.rpc("preview_order", {
+      const { data, error } = await supabase.rpc("preview_order_with_coupon", {
         p_session_id: sessionId,
         p_items: cartItems,
+        p_coupon_code: couponInput.trim() || null,
       });
       if (!active) return;
       if (error) {
@@ -634,6 +635,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
         subtotal: Number(row.subtotal),
         vat_amount: Number(row.vat_amount),
         total: Number(row.total),
+      discount_amount: Number(row.discount_amount ?? 0),
         discount_amount: Number(row.discount_amount ?? 0),
       } : null);
       setMessage("");
@@ -828,11 +830,12 @@ export function CustomerOrder({ qr }: { qr: string }) {
     if (!sessionId || !cartItems.length || !quote || busy || sessionStatus !== "open" || exitRequestedAt) return;
     setBusy(true);
     setMessage("");
-    const { data, error } = await supabase.rpc("place_order", {
+    const { data, error } = await supabase.rpc("place_order_with_coupon", {
       p_session_id: sessionId,
       p_items: cartItems,
       p_notes: null,
       p_payment_method: paymentMethod,
+      p_coupon_code: couponInput.trim() || null,
     });
     setBusy(false);
     if (error) {
@@ -841,6 +844,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
     }
     const row = Array.isArray(data) ? data[0] : data;
     setCart({});
+    setCouponInput("");
     setView("orders");
     setMessage(row?.order_no ? "تم إرسال طلبك رقم #" + row.order_no : "تم إرسال الطلب بنجاح.");
     if (customerId) await refreshSession(sessionId, customerId);
@@ -1157,8 +1161,10 @@ export function CustomerOrder({ qr }: { qr: string }) {
                   </section>
                   <section className="cart-summary-card">
                     <div className="cart-summary-heading"><div><span className="eyebrow">ملخص الدفع</span><h3>تفاصيل الفاتورة</h3></div><span className="cart-secure-label"><Check size={13}/> تسعير دقيق</span></div>
+                    <label className="coupon-entry">رمز الخصم<input value={couponInput} onChange={e=>setCouponInput(e.target.value.toUpperCase())} placeholder="أدخل كود الكوبون" maxLength={40}/></label>
                     <div className="quote-summary">
                       <div><span>المجموع الفرعي</span><strong>{quote ? formatMoney(quote.subtotal) : "—"}</strong></div>
+                      {quote?.discount_amount ? <div><span>خصم الكوبون</span><strong>−{formatMoney(quote.discount_amount)}</strong></div> : null}
                       {quote?.discount_amount ? <div><span>خصم الكوبون</span><strong>−{formatMoney(quote.discount_amount)}</strong></div> : null}
                       <div><span>ضريبة القيمة المضافة</span><strong>{quote ? formatMoney(quote.vat_amount) : "—"}</strong></div>
                       <div className="quote-total"><span>الإجمالي شامل الضريبة</span><strong>{quote ? formatMoney(quote.total) : "جارٍ احتساب الإجمالي..."}</strong></div>
