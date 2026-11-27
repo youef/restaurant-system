@@ -15,7 +15,7 @@ type Product = {
 };
 type Order = {
   id: string; session_id: string; order_no: number; status: string; subtotal: number; vat_amount: number;
-  total: number; notes: string | null; rejected_reason: string | null; placed_at: string; payment_method: "cash" | "card";
+  total: number; discount_amount: number; coupon_code: string | null; notes: string | null; rejected_reason: string | null; placed_at: string; payment_method: "cash" | "card";
 };
 type OrderItem = {
   id: string; order_id: string; product_id: string; name_ar: string; unit_price: number; quantity: number;
@@ -317,7 +317,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const refreshSession = useCallback(async (id: string, profileId: string) => {
     const [orderResult, sessionResult, billResult] = await Promise.all([
       supabase.from("orders")
-        .select("id,session_id,order_no,status,subtotal,vat_amount,total,notes,rejected_reason,placed_at,payment_method")
+        .select("id,session_id,order_no,status,subtotal,vat_amount,total,discount_amount,coupon_code,notes,rejected_reason,placed_at,payment_method")
         .eq("customer_id", profileId)
         .order("placed_at", { ascending: false }),
       supabase.from("table_sessions").select("status,customer_exit_requested_at").eq("id", id).maybeSingle(),
@@ -1254,7 +1254,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
                         <button type="button" className="order-details-toggle" aria-expanded={expanded} onClick={() => setExpandedOrders((current) => expanded ? current.filter((id) => id !== order.id) : [...current,order.id])}><span>{expanded ? "إخفاء التفاصيل" : "عرض تفاصيل الطلب"} <small>{items.length} أصناف</small></span>{expanded ? <ChevronUp size={18}/> : <ChevronDown size={18}/>}</button>
                         {expanded && <div className="order-details-panel">
                           <div className="order-items-table">{items.map((item) => <div className="order-item-row" key={item.id}><div className="order-item-name"><strong>{item.name_ar}</strong><small>{formatMoney(Number(item.unit_price))} × {item.quantity}{item.notes ? " · " + item.notes : ""}</small></div><b>{formatMoney(Number(item.line_total))}</b></div>)}{items.length === 0 && <p className="order-no-items">لا توجد تفاصيل أصناف متاحة لهذا الطلب.</p>}</div>
-                          <div className="order-price-breakdown"><div><span>المجموع الفرعي</span><strong>{formatMoney(Number(order.subtotal))}</strong></div><div><span>ضريبة القيمة المضافة</span><strong>{formatMoney(Number(order.vat_amount))}</strong></div><div className="order-grand-total"><span>الإجمالي</span><strong>{formatMoney(Number(order.total))}</strong></div></div>
+                          <div className="order-price-breakdown"><div><span>المجموع الفرعي</span><strong>{formatMoney(Number(order.subtotal))}</strong></div>{Number(order.discount_amount)>0 && <div><span>خصم الكوبون {order.coupon_code ? "("+order.coupon_code+")" : ""}</span><strong>−{formatMoney(Number(order.discount_amount))}</strong></div>}<div><span>ضريبة القيمة المضافة</span><strong>{formatMoney(Number(order.vat_amount))}</strong></div><div className="order-grand-total"><span>الإجمالي</span><strong>{formatMoney(Number(order.total))}</strong></div></div>
                           {order.notes && <p className="order-general-note">ملاحظات الطلب: {order.notes}</p>}
                         </div>}
                         <div className="order-card-actions"><button type="button" className="order-repeat-button" disabled={busy || !items.length} onClick={() => {
