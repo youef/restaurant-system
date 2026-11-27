@@ -56,7 +56,7 @@ export function OperationsManager() {
     if (wasteResult.error) setMessage(wasteResult.error.message); else setWaste((wasteResult.data ?? []) as Waste[]);
     if (couponResult.error) setMessage(couponResult.error.message); else setCoupons((couponResult.data ?? []) as Coupon[]);
     if (rewardResult.error) setMessage(rewardResult.error.message); else setRewards((rewardResult.data ?? []) as Reward[]);
-    if (redemptionResult.error) setMessage(redemptionResult.error.message); else setRedemptions((redemptionResult.data ?? []) as Redemption[]);
+    if (redemptionResult?.error) setMessage(redemptionResult.error.message); else setRedemptions((redemptionResult?.data ?? []) as Redemption[]);
   }
   useEffect(() => { void load(); }, []);
 
