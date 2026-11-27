@@ -19,3 +19,31 @@ input,textarea,select,[contenteditable=true]{user-select:text;-webkit-user-selec
 .waiter-task-card{min-width:0}
 .waiter-table-card small{line-height:1.6}
 @media(max-width:620px){.waiter-tabs button{flex:1}.waiter-refresh{flex-basis:100%;margin-inline-start:0!important}.payment-sheet{max-height:94dvh;overflow:auto}.waiter-table-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+/* Premium waiter quick-service queue */
+.waiter-service-queue{padding:clamp(16px,2.5vw,24px);border-radius:22px;background:linear-gradient(150deg,var(--surface),color-mix(in srgb,var(--accent) 4%,var(--surface)));box-shadow:0 10px 30px rgba(30,25,20,.045)}
+.waiter-service-queue .section-title{margin-bottom:15px}
+.waiter-service-eyebrow{color:var(--accent);font-size:.7rem;font-weight:950;letter-spacing:.04em}
+.waiter-service-queue .section-title h2{margin:3px 0;font-size:1.2rem}
+.waiter-service-count{padding:7px 12px;border:1px solid var(--line);border-radius:99px;background:var(--bg);font-size:.75rem;font-weight:900}
+.waiter-service-card{align-items:center;margin:10px 0;padding:15px;border-radius:18px;border-color:var(--line);box-shadow:0 4px 15px rgba(20,20,20,.025)}
+.waiter-service-main{display:flex;align-items:center;gap:13px;min-width:0}
+.waiter-service-icon{display:grid;place-items:center;flex:0 0 48px;width:48px;height:48px;border-radius:16px;background:color-mix(in srgb,var(--accent) 10%,var(--surface));font-size:1.35rem}
+.service-icon-water{background:#e8f4fb}.service-icon-napkins{background:#f3edfa}.service-icon-cutlery{background:#f6f0e5}.service-icon-waiter{background:#fff1dc}
+.waiter-service-copy{display:grid;gap:4px;min-width:0}
+.waiter-service-copy>strong{font-size:.72rem;color:var(--muted)}
+.waiter-service-copy>b{font-size:.98rem}
+.waiter-service-copy p{margin:0;font-size:.8rem}
+.waiter-service-copy small{font-size:.68rem;color:var(--muted)}
+.waiter-service-actions{display:grid;justify-items:end;gap:9px}
+.waiter-service-status{padding:5px 9px;border-radius:99px;font-size:.67rem;font-weight:900;background:#fff1dc;color:#925b14}
+.waiter-service-status.status-acknowledged{background:#e8f2ff;color:#285f9b}
+.waiter-service-actions .record-actions{flex-wrap:wrap;justify-content:flex-end}
+.waiter-service-actions .action-button{min-height:42px;padding:0 14px;font-size:.8rem}
+.waiter-service-actions .action-button.secondary{background:var(--bg);color:var(--ink);border:1px solid var(--line)}
+.waiter-service-empty{display:grid;justify-items:center;gap:7px;padding:28px 16px;border:1px dashed var(--line);border-radius:17px;color:var(--muted);text-align:center}
+.waiter-service-empty>span{display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:#eaf7ef;color:#24804a;font-size:1.3rem}
+.waiter-service-empty strong{color:var(--ink)}
+.waiter-service-empty small{font-size:.75rem}
+@media(max-width:680px){.waiter-service-card{align-items:stretch;flex-direction:column;gap:13px}.waiter-service-actions{justify-items:stretch}.waiter-service-actions .record-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.waiter-service-actions .action-button{width:100%}}
