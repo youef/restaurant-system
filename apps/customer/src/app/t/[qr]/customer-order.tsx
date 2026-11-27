@@ -638,7 +638,23 @@ export function CustomerOrder({ qr }: { qr: string }) {
     };
   }, [cartItems, sessionId, sessionStatus, supabase]);
 
+  const mealHours = restaurant?.meal_period_hours ?? {
+    breakfast:{start:"05:00",end:"11:00"}, lunch:{start:"11:00",end:"17:00"}, dinner:{start:"17:00",end:"05:00"}
+  };
+  const localClock = new Date(Date.now() + clockTick).toLocaleTimeString("en-GB", {
+    timeZone: restaurant?.timezone || "Asia/Riyadh", hour:"2-digit", minute:"2-digit", hourCycle:"h23"
+  });
+  const clockMinutes = Number(localClock.slice(0,2))*60 + Number(localClock.slice(3,5));
+  const inWindow = (start:string,end:string) => {
+    const toMinutes = (value:string) => { const [h,m]=value.split(":").map(Number); return h*60+m; };
+    const a=toMinutes(start), b=toMinutes(end);
+    return a<=b ? clockMinutes>=a && clockMinutes<b : clockMinutes>=a || clockMinutes<b;
+  };
+  const activeMealPeriod = (["breakfast","lunch","dinner"] as const).find(key =>
+    inWindow(mealHours[key]?.start ?? "00:00",mealHours[key]?.end ?? "00:00")
+  ) ?? "dinner";
   const filteredProducts = products.filter((product) => {
+    const matchesMeal = product.meal_period === "all" || product.meal_period === activeMealPeriod;
     const matchesCategory = activeCategory === "all" || product.category_id === activeCategory;
     const matchesSearch = !search.trim() ||
       product.name_ar.toLowerCase().includes(search.trim().toLowerCase()) ||
@@ -935,7 +951,8 @@ export function CustomerOrder({ qr }: { qr: string }) {
         <div className="table-chip"><span>رقم الطاولة</span><strong>{tableNumber}</strong></div>
       </header>
       <div className="customer-context">
-        <span><Clock size={15}/> اطلب مباشرة من طاولتك</span>
+        <span><Clock size={15}/> اطلب مباشرة من طاولتك · {({breakfast:"الإفطار",lunch:"الغداء",dinner:"العشاء"} as Record<string,string>)[activeMealPeriod]}</span>
+        {loyalty && <span className="loyalty-chip">⭐ {loyalty.points_balance} نقطة · عضوية {loyalty.membership_level}</span>
         {restaurant?.phone && <a href={"tel:" + restaurant.phone}><Phone size={15}/> تواصل معنا</a>}
         {!online && <span className="offline-inline"><WifiOff size={14}/> غير متصل</span>}
       </div>
