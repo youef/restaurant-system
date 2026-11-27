@@ -147,7 +147,43 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [serviceBusy, setServiceBusy] = useState(false);
 
-  useEffect(() => { const timer = window.setInterval(() => setClockTick(v=>v+1), 60000); return () => window.clearInterval(timer); }, []);\n\n  useEffect(() => {\n    if (!customerId) { setLoyalty(null); setCoupons([]); return; }\n    let active=true;\n    Promise.all([supabase.rpc("get_my_loyalty_summary"),supabase.from("coupons").select("id,code,title,description,discount_percent,discount_amount").eq("is_active",true).order("created_at",{ascending:false})]).then(([loyaltyResult,couponResult])=>{ if(!active)return; const row=Array.isArray(loyaltyResult.data)?loyaltyResult.data[0]:loyaltyResult.data; if(!loyaltyResult.error && row) setLoyalty(row as LoyaltySummary); if(!couponResult.error) setCoupons((couponResult.data??[]) as Coupon[]); });\n    return ()=>{active=false;};\n  },[customerId,supabase]);\n\n  async function requestService(type:"water"|"napkins"|"cutlery"|"waiter") {\n    if(!sessionId || serviceBusy || !online) return; setServiceBusy(true);\n    const {error}=await supabase.rpc("create_service_request",{p_session_id:sessionId,p_request_type:type,p_note:null});\n    setServiceBusy(false); setMessage(error?.message ?? "تم إرسال طلب الخدمة إلى النادل.");\n  }\n\n  function stopQrScanner() {
+  useEffect(() => { const timer = window.setInterval(() => setClockTick(v=>v+1), 60000); return () => window.clearInterval(timer); }, []);
+
+  useEffect(() => {
+    if (!customerId) { setLoyalty(null); setCoupons([]); return; }
+    let active=true;
+    async function loadLoyaltyAndOffers() {
+      const month=Number(birthMonthInput), day=Number(birthDayInput);
+      if (month && day) {
+        try {
+          const parts=new Intl.DateTimeFormat("en-u-ca-islamic-umalqura",{timeZone:restaurant?.timezone||"Asia/Riyadh",year:"numeric",month:"numeric",day:"numeric"}).formatToParts(new Date());
+          const get=(key:string)=>Number(parts.find(part=>part.type===key)?.value);
+          const hijriYear=get("year"), hijriMonth=get("month"), hijriDay=get("day");
+          if(hijriMonth===month && hijriDay===day && Number.isInteger(hijriYear)) {
+            await supabase.rpc("claim_birthday_coupon",{p_hijri_year:hijriYear,p_month:month,p_day:day});
+          }
+        } catch { /* Hijri calendar support varies by browser; regular offers still load. */ }
+      }
+      const [loyaltyResult,couponResult]=await Promise.all([
+        supabase.rpc("get_my_loyalty_summary"),
+        supabase.from("coupons").select("id,code,title,description,discount_percent,discount_amount").eq("is_active",true).order("created_at",{ascending:false})
+      ]);
+      if(!active)return;
+      const row=Array.isArray(loyaltyResult.data)?loyaltyResult.data[0]:loyaltyResult.data;
+      if(!loyaltyResult.error && row) setLoyalty(row as LoyaltySummary);
+      if(!couponResult.error) setCoupons((couponResult.data??[]) as Coupon[]);
+    }
+    void loadLoyaltyAndOffers();
+    return ()=>{active=false;};
+  },[customerId,supabase,birthMonthInput,birthDayInput,restaurant?.timezone]);
+
+  async function requestService(type:"water"|"napkins"|"cutlery"|"waiter") {
+    if(!sessionId || serviceBusy || !online) return; setServiceBusy(true);
+    const {error}=await supabase.rpc("create_service_request",{p_session_id:sessionId,p_request_type:type,p_note:null});
+    setServiceBusy(false); setMessage(error?.message ?? "تم إرسال طلب الخدمة إلى النادل.");
+  }
+
+  function stopQrScanner() {
     if (scannerFrameRef.current !== null) window.cancelAnimationFrame(scannerFrameRef.current);
     scannerFrameRef.current = null;
     cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
@@ -939,7 +975,9 @@ export function CustomerOrder({ qr }: { qr: string }) {
       </section>
 
       {message && <p className="feedback" role="status">{message}</p>}
-      {!online && <p className="offline-banner" role="status">لا يوجد اتصال، تظهر آخر حالة محفوظة وسيعاد الاتصال تلقائياً.</p>}\n      <section className="customer-service-panel" aria-label="طلبات الخدمة"><strong>تحتاج شيئاً على الطاولة؟</strong><div><button type="button" disabled={serviceBusy || !online} onClick={()=>void requestService("water")}>💧 ماء</button><button type="button" disabled={serviceBusy || !online} onClick={()=>void requestService("napkins")}>مناديل</button><button type="button" disabled={serviceBusy || !online} onClick={()=>void requestService("cutlery")}>أدوات طعام</button><button type="button" disabled={serviceBusy || !online} onClick={()=>void requestService("waiter")}>🔔 نادِل</button></div></section>\n      {coupons.length>0 && <section className="customer-coupons"><strong>عروض وكوبونات متاحة</strong>{coupons.map(c=><span key={c.id}>{c.title} · <b>{c.code}</b> · {c.discount_percent ? c.discount_percent+"%" : c.discount_amount+" ر.س"}</span>)}</section>}
+      {!online && <p className="offline-banner" role="status">لا يوجد اتصال، تظهر آخر حالة محفوظة وسيعاد الاتصال تلقائياً.</p>}
+      <section className="customer-service-panel" aria-label="طلبات الخدمة"><strong>تحتاج شيئاً على الطاولة؟</strong><div><button type="button" disabled={serviceBusy || !online} onClick={()=>void requestService("water")}>💧 ماء</button><button type="button" disabled={serviceBusy || !online} onClick={()=>void requestService("napkins")}>مناديل</button><button type="button" disabled={serviceBusy || !online} onClick={()=>void requestService("cutlery")}>أدوات طعام</button><button type="button" disabled={serviceBusy || !online} onClick={()=>void requestService("waiter")}>🔔 نادِل</button></div></section>
+      {coupons.length>0 && <section className="customer-coupons"><strong>عروض وكوبونات متاحة</strong>{coupons.map(c=><span key={c.id}>{c.title} · <b>{c.code}</b> · {c.discount_percent ? c.discount_percent+"%" : c.discount_amount+" ر.س"}</span>)}</section>}
 
       {sessionStatus === "closed" ? (
         <section className="thanks-panel">
