@@ -15,6 +15,7 @@ export function OperationsManager() {
     breakfast:{start:"05:00",end:"11:00"}, lunch:{start:"11:00",end:"17:00"}, dinner:{start:"17:00",end:"05:00"}
   });
   const [rate,setRate] = useState("1");
+  const [birthdayDiscount,setBirthdayDiscount]=useState("15");
   const [products,setProducts] = useState<Product[]>([]);
   const [waste,setWaste] = useState<Waste[]>([]);
   const [productId,setProductId] = useState("");
@@ -33,13 +34,14 @@ export function OperationsManager() {
 
   async function load() {
     const [settingsResult, productResult, wasteResult] = await Promise.all([
-      db.from("settings").select("meal_period_hours,loyalty_points_per_currency").eq("id",1).maybeSingle(),
+      db.from("settings").select("meal_period_hours,loyalty_points_per_currency,birthday_discount_percent").eq("id",1).maybeSingle(),
       db.from("products").select("id,name_ar").eq("is_active",true).order("name_ar"),
       db.from("waste_records").select("id,product_name,quantity,unit,reason,recorded_at").order("recorded_at",{ascending:false}).limit(100)
     ]);
     if (settingsResult.data) {
       setHours({ ...hours, ...(settingsResult.data.meal_period_hours as Record<string,Period> ?? {}) });
       setRate(String(settingsResult.data.loyalty_points_per_currency ?? 1));
+      setBirthdayDiscount(String(settingsResult.data.birthday_discount_percent ?? 15));
     }
     if (productResult.error) setMessage(productResult.error.message); else setProducts((productResult.data ?? []) as Product[]);
     if (wasteResult.error) setMessage(wasteResult.error.message); else setWaste((wasteResult.data ?? []) as Waste[]);
@@ -51,7 +53,7 @@ export function OperationsManager() {
     const pointsRate=Number(rate);
     if (!Number.isFinite(pointsRate) || pointsRate<0) { setMessage("أدخل معدل نقاط صحيحاً."); return; }
     setBusy(true);
-    const {error}=await db.from("settings").update({meal_period_hours:hours,loyalty_points_per_currency:pointsRate}).eq("id",1);
+    const {error}=await db.from("settings").update({meal_period_hours:hours,loyalty_points_per_currency:pointsRate,birthday_discount_percent:birthdayRate}).eq("id",1);
     setBusy(false); setMessage(error?.message ?? "تم حفظ أوقات الوجبات ومعدل النقاط.");
   }
   async function addWaste(event: React.FormEvent<HTMLFormElement>) {
@@ -91,7 +93,7 @@ export function OperationsManager() {
       <header><h3>القائمة الذكية حسب الوقت</h3><span>حسب توقيت المطعم</span></header>
       <div className="admin-form-grid">
         {(["breakfast","lunch","dinner"] as const).map(key=><div key={key}><strong>{periodLabels[key]}</strong><label>من<input type="time" value={hours[key]?.start ?? "00:00"} onChange={e=>setHours(h=>({...h,[key]:{...h[key],start:e.target.value}}))}/></label><label>إلى<input type="time" value={hours[key]?.end ?? "00:00"} onChange={e=>setHours(h=>({...h,[key]:{...h[key],end:e.target.value}}))}/></label></div>)}
-        <label>نقاط لكل ريال<input type="number" min="0" step="0.1" value={rate} onChange={e=>setRate(e.target.value)}/></label>
+        <label>نقاط لكل ريال<input type="number" min="0" step="0.1" value={rate} onChange={e=>setRate(e.target.value)}/></label>\n        <label>خصم عيد الميلاد (%)<input type="number" min="0.01" max="100" step="0.5" value={birthdayDiscount} onChange={e=>setBirthdayDiscount(e.target.value)}/></label>
       </div>
       <p className="muted">اربط كل منتج بفترة تقديمه من صفحة المنيو. المنتجات المحددة «كل الأوقات» تبقى ظاهرة دائماً.</p>
       <button className="action-button" disabled={busy}>حفظ الإعدادات</button>
