@@ -635,7 +635,6 @@ export function CustomerOrder({ qr }: { qr: string }) {
         subtotal: Number(row.subtotal),
         vat_amount: Number(row.vat_amount),
         total: Number(row.total),
-      discount_amount: Number(row.discount_amount ?? 0),
         discount_amount: Number(row.discount_amount ?? 0),
       } : null);
       setMessage("");
