@@ -67,7 +67,7 @@ export function WaiterBoard() {
   const selectedOrders = selectedBill ? orders.filter((order) => order.session_id === selectedBill.session_id) : [];
   const billableOrders = selectedOrders.filter((order) => order.status !== "rejected");
   const billSubtotal = billableOrders.reduce((sum, order) => sum + Number(order.subtotal), 0);
-  const billVat = billableOrders.reduce((sum, order) => sum + Number(order.vat_amount), 0);
+  const billDiscount = billableOrders.reduce((sum, order) => sum + Number(order.discount_amount ?? 0), 0);\n  const billVat = billableOrders.reduce((sum, order) => sum + Number(order.vat_amount), 0);
   const billTotal = billableOrders.reduce((sum, order) => sum + Number(order.total), 0);
   const canClose = selectedOrders.length > 0 && selectedOrders.every((order) => order.status === "served" || order.status === "rejected");
   const changeDue = Math.max(0, Number(received || 0) - billTotal);
@@ -198,7 +198,7 @@ export function WaiterBoard() {
               ))}
               <div><span>قبل الضريبة</span><b>{formatMoney(billSubtotal)}</b></div>
               {billableOrders.some(order=>Number(order.discount_amount)>0) && <div><span>خصم الكوبون</span><b>−{formatMoney(billableOrders.reduce((sum,order)=>sum+Number(order.discount_amount||0),0))}</b></div>}
-              <div><span>ضريبة القيمة المضافة</span><b>{formatMoney(billVat)}</b></div>
+              {billDiscount>0 && <div><span>خصومات الكوبونات</span><b>−{formatMoney(billDiscount)}</b></div>}\n              <div><span>ضريبة القيمة المضافة</span><b>{formatMoney(billVat)}</b></div>
               <div className="waiter-invoice-grand"><span>الإجمالي شامل الضريبة</span><b>{formatMoney(billTotal)}</b></div>
             </section>
             {!canClose && <p className="feedback">{selectedOrders.length ? "يجب تقديم الطلبات الجاهزة أولاً قبل إغلاق الحساب." : "لا يمكن إغلاق جلسة لا تحتوي على طلبات."}</p>}
