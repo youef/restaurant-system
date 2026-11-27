@@ -962,7 +962,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
       </header>
       <div className="customer-context">
         <span><Clock size={15}/> اطلب مباشرة من طاولتك · {({breakfast:"الإفطار",lunch:"الغداء",dinner:"العشاء"} as Record<string,string>)[activeMealPeriod]}</span>
-        {loyalty && <span className="loyalty-chip">⭐ {loyalty.points_balance} نقطة · عضوية {loyalty.membership_level}</span>
+        {loyalty && <span className="loyalty-chip">⭐ {loyalty.points_balance} نقطة · عضوية {loyalty.membership_level}</span>}
         {restaurant?.phone && <a href={"tel:" + restaurant.phone}><Phone size={15}/> تواصل معنا</a>}
         {!online && <span className="offline-inline"><WifiOff size={14}/> غير متصل</span>}
       </div>
