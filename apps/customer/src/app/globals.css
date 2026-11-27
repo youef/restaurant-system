@@ -807,3 +807,30 @@ body {
 .customer-start-button{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;max-width:360px;min-height:58px;margin:28px 0 18px;padding:0 22px;border:0;border-radius:16px;background:var(--accent);color:#fff;text-decoration:none;font-weight:900;font-size:1.05rem;box-shadow:0 10px 24px rgba(255,107,74,.2);transition:transform .18s ease,filter .18s ease}
 .customer-start-button:hover{filter:brightness(.96);transform:translateY(-2px)}
 .customer-start-button span{font-size:1.35rem}
+
+
+/* Premium quick-service panel */
+.customer-service-panel{margin:22px 0;padding:18px;border:1px solid #f0e4df;border-radius:24px;background:linear-gradient(145deg,#fff 0%,#fff8f5 100%);box-shadow:0 12px 32px rgba(55,35,25,.055);color:#292522}
+.customer-service-heading{display:flex;align-items:center;gap:11px;margin-bottom:16px}
+.customer-service-heading-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:14px;background:#f8e9e3;color:#a9543e;font-size:1.3rem}
+.customer-service-heading>div{display:grid;gap:4px;flex:1}
+.customer-service-heading>div strong{font-size:1rem;font-weight:950}
+.customer-service-heading>div small{color:#887c76;font-size:.75rem}
+.customer-service-live{display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:99px;background:#edf8f0;color:#267448;font-size:.68rem;font-weight:900}
+.customer-service-live i{width:7px;height:7px;border-radius:50%;background:#31a765;box-shadow:0 0 0 4px #31a76520}
+.customer-service-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.customer-service-option{display:grid;justify-items:center;align-content:start;gap:7px;min-width:0;min-height:118px;padding:13px 5px;border:1px solid #eee5e0;border-radius:17px;background:#fff;color:#302a26;transition:transform .18s,border-color .18s,box-shadow .18s}
+.customer-service-option:active{transform:scale(.96)}
+.customer-service-option:hover{border-color:#d8b6a8;box-shadow:0 7px 18px #68412a10}
+.customer-service-option-icon{display:grid;place-items:center;width:43px;height:43px;border-radius:14px;background:#f8eee9;font-size:1.35rem}
+.service-water .customer-service-option-icon{background:#e9f5fb}.service-napkins .customer-service-option-icon{background:#f5effb}.service-cutlery .customer-service-option-icon{background:#f7f2e8}.service-waiter .customer-service-option-icon{background:#fff2df}
+.customer-service-option strong{font-size:.78rem;font-weight:950;text-align:center}
+.customer-service-option small{color:#948780;font-size:.64rem;text-align:center;line-height:1.5}
+.customer-service-option:disabled{opacity:.55;cursor:not-allowed}
+.customer-service-bill{display:flex;align-items:center;gap:11px;width:100%;margin-top:11px;padding:12px 14px;border:1px solid #ead8ce;border-radius:15px;background:#fff;color:#4a332a;text-align:right}
+.customer-service-bill>span:first-child{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#f8eee8;font-size:1.15rem}
+.customer-service-bill>span:nth-child(2){display:grid;gap:3px;flex:1}
+.customer-service-bill strong{font-size:.82rem}.customer-service-bill small{color:#8b7b72;font-size:.68rem}
+.customer-service-bill>b{font-size:1.25rem;color:#a9543e}
+.customer-service-bill:disabled{opacity:.65;cursor:not-allowed}
+@media(max-width:520px){.customer-service-panel{padding:15px;border-radius:20px}.customer-service-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.customer-service-option{min-height:105px}.customer-service-option-icon{width:40px;height:40px}}
