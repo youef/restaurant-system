@@ -633,7 +633,8 @@ export function CustomerOrder({ qr }: { qr: string }) {
       setQuote(row ? {
         subtotal: Number(row.subtotal),
         vat_amount: Number(row.vat_amount),
-        total: Number(row.total),\n        discount_amount: Number(row.discount_amount ?? 0),
+        total: Number(row.total),
+        discount_amount: Number(row.discount_amount ?? 0),
       } : null);
       setMessage("");
     }, 180);
@@ -999,7 +1000,8 @@ export function CustomerOrder({ qr }: { qr: string }) {
       {message && <p className="feedback" role="status">{message}</p>}
       {!online && <p className="offline-banner" role="status">لا يوجد اتصال، تظهر آخر حالة محفوظة وسيعاد الاتصال تلقائياً.</p>}
       <section className="customer-service-panel" aria-label="طلبات الخدمة"><strong>تحتاج شيئاً على الطاولة؟</strong><div><button type="button" disabled={serviceBusy || !online} onClick={()=>void requestService("water")}>💧 ماء</button><button type="button" disabled={serviceBusy || !online} onClick={()=>void requestService("napkins")}>مناديل</button><button type="button" disabled={serviceBusy || !online} onClick={()=>void requestService("cutlery")}>أدوات طعام</button><button type="button" disabled={serviceBusy || !online} onClick={()=>void requestService("waiter")}>🔔 نادِل</button></div></section>
-      {coupons.length>0 && <section className="customer-coupons"><strong>عروض وكوبونات متاحة</strong>{coupons.map(c=><span key={c.id}>{c.title} · <b>{c.code}</b> · {c.discount_percent ? c.discount_percent+"%" : c.discount_amount+" ر.س"}</span>)}</section>}\n      {rewards.length>0 && <section className="customer-coupons"><strong>استبدل نقاطك بمكافأة</strong>{rewards.map(reward=><span key={reward.id}>{reward.title} · {reward.points_cost} نقطة <button type="button" disabled={!loyalty || loyalty.points_balance<reward.points_cost || busy} onClick={async()=>{setBusy(true);const {data,error}=await supabase.rpc("redeem_loyalty_reward",{p_reward_id:reward.id});setBusy(false);if(error)setMessage(error.message);else{const row=Array.isArray(data)?data[0]:data;setMessage("تم حجز المكافأة: "+row?.reward_title);setLoyalty(current=>current?{...current,points_balance:Number(row?.points_balance??current.points_balance)}:current);}}}>استبدال</button></span>)}</section>}
+      {coupons.length>0 && <section className="customer-coupons"><strong>عروض وكوبونات متاحة</strong>{coupons.map(c=><span key={c.id}>{c.title} · <b>{c.code}</b> · {c.discount_percent ? c.discount_percent+"%" : c.discount_amount+" ر.س"}</span>)}</section>}
+      {rewards.length>0 && <section className="customer-coupons"><strong>استبدل نقاطك بمكافأة</strong>{rewards.map(reward=><span key={reward.id}>{reward.title} · {reward.points_cost} نقطة <button type="button" disabled={!loyalty || loyalty.points_balance<reward.points_cost || busy} onClick={async()=>{setBusy(true);const {data,error}=await supabase.rpc("redeem_loyalty_reward",{p_reward_id:reward.id});setBusy(false);if(error)setMessage(error.message);else{const row=Array.isArray(data)?data[0]:data;setMessage("تم حجز المكافأة: "+row?.reward_title);setLoyalty(current=>current?{...current,points_balance:Number(row?.points_balance??current.points_balance)}:current);}}}>استبدال</button></span>)}</section>}
 
       {sessionStatus === "closed" ? (
         <section className="thanks-panel">
@@ -1157,7 +1159,8 @@ export function CustomerOrder({ qr }: { qr: string }) {
                     <div className="cart-summary-heading"><div><span className="eyebrow">ملخص الدفع</span><h3>تفاصيل الفاتورة</h3></div><span className="cart-secure-label"><Check size={13}/> تسعير دقيق</span></div>
                     <div className="quote-summary">
                       <div><span>المجموع الفرعي</span><strong>{quote ? formatMoney(quote.subtotal) : "—"}</strong></div>
-                      {quote?.discount_amount ? <div><span>خصم الكوبون</span><strong>−{formatMoney(quote.discount_amount)}</strong></div> : null}\n                      <div><span>ضريبة القيمة المضافة</span><strong>{quote ? formatMoney(quote.vat_amount) : "—"}</strong></div>
+                      {quote?.discount_amount ? <div><span>خصم الكوبون</span><strong>−{formatMoney(quote.discount_amount)}</strong></div> : null}
+                      <div><span>ضريبة القيمة المضافة</span><strong>{quote ? formatMoney(quote.vat_amount) : "—"}</strong></div>
                       <div className="quote-total"><span>الإجمالي شامل الضريبة</span><strong>{quote ? formatMoney(quote.total) : "جارٍ احتساب الإجمالي..."}</strong></div>
                     </div>
                     <p className="cart-summary-footnote">يتم احتساب الإجمالي والضريبة تلقائياً وفق أسعار المطعم.</p>
