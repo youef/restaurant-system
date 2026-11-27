@@ -259,3 +259,17 @@ returns table(points_balance bigint,lifetime_points bigint,membership_level text
 language sql stable security invoker set search_path=pg_catalog,public,private as $$ select * from private.get_my_loyalty_summary() $$;
 revoke all on function public.get_my_loyalty_summary() from public,anon;
 grant execute on function public.get_my_loyalty_summary() to authenticated;
+
+
+create or replace function private.get_my_birthday()
+returns table(birth_month_hijri smallint,birth_day_hijri smallint)
+language sql stable security definer set search_path=pg_catalog,public,private as $$
+ select birth_month_hijri,birth_day_hijri from public.customer_profiles where auth_user_id=auth.uid()
+$$;
+revoke all on function private.get_my_birthday() from public,anon,authenticated;
+grant execute on function private.get_my_birthday() to authenticated;
+create or replace function public.get_my_birthday()
+returns table(birth_month_hijri smallint,birth_day_hijri smallint)
+language sql stable security invoker set search_path=pg_catalog,public,private as $$ select * from private.get_my_birthday() $$;
+revoke all on function public.get_my_birthday() from public,anon;
+grant execute on function public.get_my_birthday() to authenticated;
