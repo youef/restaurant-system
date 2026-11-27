@@ -50,8 +50,8 @@ export function OperationsManager() {
 
   async function saveSettings(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const pointsRate=Number(rate);
-    if (!Number.isFinite(pointsRate) || pointsRate<0) { setMessage("أدخل معدل نقاط صحيحاً."); return; }
+    const pointsRate=Number(rate), birthdayRate=Number(birthdayDiscount);
+    if (!Number.isFinite(pointsRate) || pointsRate<0 || !Number.isFinite(birthdayRate) || birthdayRate<=0 || birthdayRate>100) { setMessage("تحقق من معدل النقاط ونسبة خصم الميلاد."); return; }
     setBusy(true);
     const {error}=await db.from("settings").update({meal_period_hours:hours,loyalty_points_per_currency:pointsRate,birthday_discount_percent:birthdayRate}).eq("id",1);
     setBusy(false); setMessage(error?.message ?? "تم حفظ أوقات الوجبات ومعدل النقاط.");
@@ -93,7 +93,8 @@ export function OperationsManager() {
       <header><h3>القائمة الذكية حسب الوقت</h3><span>حسب توقيت المطعم</span></header>
       <div className="admin-form-grid">
         {(["breakfast","lunch","dinner"] as const).map(key=><div key={key}><strong>{periodLabels[key]}</strong><label>من<input type="time" value={hours[key]?.start ?? "00:00"} onChange={e=>setHours(h=>({...h,[key]:{...h[key],start:e.target.value}}))}/></label><label>إلى<input type="time" value={hours[key]?.end ?? "00:00"} onChange={e=>setHours(h=>({...h,[key]:{...h[key],end:e.target.value}}))}/></label></div>)}
-        <label>نقاط لكل ريال<input type="number" min="0" step="0.1" value={rate} onChange={e=>setRate(e.target.value)}/></label>\n        <label>خصم عيد الميلاد (%)<input type="number" min="0.01" max="100" step="0.5" value={birthdayDiscount} onChange={e=>setBirthdayDiscount(e.target.value)}/></label>
+        <label>نقاط لكل ريال<input type="number" min="0" step="0.1" value={rate} onChange={e=>setRate(e.target.value)}/></label>
+        <label>خصم عيد الميلاد (%)<input type="number" min="0.01" max="100" step="0.5" value={birthdayDiscount} onChange={e=>setBirthdayDiscount(e.target.value)}/></label>
       </div>
       <p className="muted">اربط كل منتج بفترة تقديمه من صفحة المنيو. المنتجات المحددة «كل الأوقات» تبقى ظاهرة دائماً.</p>
       <button className="action-button" disabled={busy}>حفظ الإعدادات</button>
