@@ -198,7 +198,6 @@ export function WaiterBoard() {
                 </article>
               ))}
               <div><span>قبل الضريبة</span><b>{formatMoney(billSubtotal)}</b></div>
-              {billableOrders.some(order=>Number(order.discount_amount)>0) && <div><span>خصم الكوبون</span><b>−{formatMoney(billableOrders.reduce((sum,order)=>sum+Number(order.discount_amount||0),0))}</b></div>}
               {billDiscount>0 && <div><span>خصومات الكوبونات</span><b>−{formatMoney(billDiscount)}</b></div>}
               <div><span>ضريبة القيمة المضافة</span><b>{formatMoney(billVat)}</b></div>
               <div className="waiter-invoice-grand"><span>الإجمالي شامل الضريبة</span><b>{formatMoney(billTotal)}</b></div>
