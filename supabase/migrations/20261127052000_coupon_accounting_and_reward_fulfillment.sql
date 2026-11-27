@@ -49,6 +49,4 @@ drop function if exists public.list_pending_loyalty_redemptions();
 drop function if exists private.list_pending_loyalty_redemptions();
 drop function if exists public.fulfill_loyalty_redemption(uuid);
 drop function if exists private.fulfill_loyalty_redemption(uuid);
-drop function if exists public.redeem_loyalty_reward(uuid);
-drop function if exists private.redeem_loyalty_reward(uuid);
 drop table if exists private.customer_loyalty_redemptions cascade;
