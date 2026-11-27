@@ -8,19 +8,19 @@ type Category = { id: string; name_ar: string; name_en: string | null; sort_orde
 type Product = {
   id: string; category_id: string; name_ar: string; name_en: string | null;
   description_ar: string | null; description_en: string | null; price: number;
-  image_path: string | null; station: "kitchen" | "grill" | "bar" | "dessert";
+  image_path: string | null; station: "kitchen" | "grill" | "bar" | "dessert"; meal_period: "all" | "breakfast" | "lunch" | "dinner";
   is_available: boolean; is_active: boolean; is_featured: boolean; sort_order: number;
 };
 type ProductDraft = {
   id?: string; category_id: string; name_ar: string; name_en: string; description_ar: string;
   description_en: string; price: string; station: Product["station"]; is_available: boolean;
-  is_active: boolean; is_featured: boolean; sort_order: string; image_path: string | null;
+  is_active: boolean; is_featured: boolean; sort_order: string; image_path: string | null; meal_period: Product["meal_period"];
 };
 
 const emptyDraft: ProductDraft = {
   category_id: "", name_ar: "", name_en: "", description_ar: "", description_en: "",
   price: "", station: "kitchen", is_available: true, is_active: true,
-  is_featured: false, sort_order: "0", image_path: null,
+  is_featured: false, sort_order: "0", image_path: null, meal_period: "all",
 };
 const stationLabels: Record<Product["station"], string> = {
   kitchen: "المطبخ", grill: "الشواية", bar: "المشروبات", dessert: "الحلويات",
@@ -137,7 +137,7 @@ export function MenuManager() {
       description_en: draft.description_en.trim() || null,
       price, image_path: imagePath, station: draft.station,
       is_available: draft.is_available, is_active: draft.is_active,
-      is_featured: draft.is_featured, sort_order: Number(draft.sort_order) || 0,
+      is_featured: draft.is_featured, sort_order: Number(draft.sort_order) || 0, meal_period: draft.meal_period,
     };
     const result = draft.id
       ? await db.from("products").update(payload).eq("id", draft.id)
@@ -197,7 +197,7 @@ export function MenuManager() {
           <article className="admin-product-card" key={product.id}>
             {productImageUrl(product.image_path) ? <img className="admin-product-image" src={productImageUrl(product.image_path)!} alt={product.name_ar} loading="lazy" /> : <div className="admin-product-image admin-product-image-empty">لا توجد صورة</div>}
             <div className="admin-product-head"><strong>{product.name_ar}</strong><span>{formatMoney(Number(product.price))}</span></div>
-            <small>{categories.find((category) => category.id === product.category_id)?.name_ar ?? "—"} · {stationLabels[product.station]}</small>
+            <small>{categories.find((category) => category.id === product.category_id)?.name_ar ?? "—"} · {stationLabels[product.station]} · {({ all: "كل الأوقات", breakfast: "الإفطار", lunch: "الغداء", dinner: "العشاء" } as Record<string,string>)[product.meal_period ?? "all"]}</small>
             <p>{product.description_ar}</p>
             <div className="product-flags">
               <span className={product.is_available ? "state-pill active" : "state-pill inactive"}>{product.is_available ? "متوفر" : "نفد"}</span>
@@ -224,7 +224,7 @@ export function MenuManager() {
               <label>اسم المنتج بالعربية<input value={draft.name_ar} onChange={(event) => setDraft({ ...draft, name_ar: event.target.value })} required maxLength={120} /></label>
               <label>English name<input dir="ltr" value={draft.name_en} onChange={(event) => setDraft({ ...draft, name_en: event.target.value })} /></label>
               <label>السعر (ريال)<input type="number" min="0" step="0.01" value={draft.price} onChange={(event) => setDraft({ ...draft, price: event.target.value })} required /></label>
-              <label>نوع المنتج / محطة التحضير<select value={draft.station} onChange={(event) => setDraft({ ...draft, station: event.target.value as Product["station"] })}>
+              <label>فترة تقديم المنتج<select value={draft.meal_period} onChange={(event) => setDraft({ ...draft, meal_period: event.target.value as Product["meal_period"] })}><option value="all">كل الأوقات</option><option value="breakfast">الإفطار</option><option value="lunch">الغداء</option><option value="dinner">العشاء</option></select></label>\n              <label>نوع المنتج / محطة التحضير<select value={draft.station} onChange={(event) => setDraft({ ...draft, station: event.target.value as Product["station"] })}>
                 {Object.entries(stationLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select></label>
               <label>ترتيب العرض<input type="number" value={draft.sort_order} onChange={(event) => setDraft({ ...draft, sort_order: event.target.value })} /></label>
