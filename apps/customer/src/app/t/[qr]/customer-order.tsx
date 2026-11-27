@@ -7,11 +7,11 @@ import { formatMoney } from "@restaurant/i18n";
 import { Search, ShoppingBag, ClipboardList, UtensilsCrossed, Plus, Minus, X, WifiOff, ArrowLeft, Check, Store, MapPin, Phone, Clock, LayoutGrid, List, Sparkles, ChefHat, Flame, Banknote, CreditCard, RefreshCw, ChevronDown, ChevronUp, RotateCcw, CalendarDays, ReceiptText, CircleCheck, Timer, AlertCircle, Bell, BellRing, ShieldCheck, ScanLine } from "lucide-react";
 
 type Category = { id: string; name_ar: string; name_en: string | null; sort_order: number };
-type RestaurantSettings = { restaurant_name_ar: string; restaurant_name_en: string | null; logo_path: string | null; phone: string | null; address: string | null; opening_hours: Record<string, unknown> | null };
+type RestaurantSettings = { restaurant_name_ar: string; restaurant_name_en: string | null; logo_path: string | null; phone: string | null; address: string | null; opening_hours: Record<string, unknown> | null; timezone?: string; meal_period_hours?: Record<string,{start:string;end:string}> };
 type Product = {
   id: string; category_id: string; name_ar: string; name_en: string | null;
   description_ar: string | null; price: number; image_path: string | null;
-  is_available: boolean; is_featured: boolean; sort_order: number; station: string | null;
+  is_available: boolean; is_featured: boolean; sort_order: number; station: string | null; meal_period: "all" | "breakfast" | "lunch" | "dinner";
 };
 type Order = {
   id: string; session_id: string; order_no: number; status: string; subtotal: number; vat_amount: number;
@@ -25,6 +25,8 @@ type CartLine = { quantity: number; notes: string };
 type Quote = { subtotal: number; vat_amount: number; total: number };
 type BillRequest = { id: string; status: "requested" | "acknowledged" | "closed" };
 type CustomerTable = { table_number: number; seats: number; status: "available" | "occupied" | "out_of_service" };
+type LoyaltySummary = { points_balance: number; lifetime_points: number; membership_level: string };
+type Coupon = { id: string; code: string; title: string; description: string | null; discount_percent: number | null; discount_amount: number | null };
 
 const statusSteps = [
   { key: "pending", label: "تم الإرسال" },
@@ -102,6 +104,8 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const [phoneInput, setPhoneInput] = useState("");
   const [birthYear, setBirthYear] = useState("");
   const [birthYearInput, setBirthYearInput] = useState("");
+  const [birthMonthInput, setBirthMonthInput] = useState("");
+  const [birthDayInput, setBirthDayInput] = useState("");
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [scannedQr, setScannedQr] = useState<string | null>(null);
   const [qrInput, setQrInput] = useState("");
@@ -138,8 +142,12 @@ export function CustomerOrder({ qr }: { qr: string }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [online, setOnline] = useState(true);
+  const [clockTick, setClockTick] = useState(0);
+  const [loyalty, setLoyalty] = useState<LoyaltySummary | null>(null);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [serviceBusy, setServiceBusy] = useState(false);
 
-  function stopQrScanner() {
+  useEffect(() => { const timer = window.setInterval(() => setClockTick(v=>v+1), 60000); return () => window.clearInterval(timer); }, []);\n\n  useEffect(() => {\n    if (!customerId) { setLoyalty(null); setCoupons([]); return; }\n    let active=true;\n    Promise.all([supabase.rpc("get_my_loyalty_summary"),supabase.from("coupons").select("id,code,title,description,discount_percent,discount_amount").eq("is_active",true).order("created_at",{ascending:false})]).then(([loyaltyResult,couponResult])=>{ if(!active)return; const row=Array.isArray(loyaltyResult.data)?loyaltyResult.data[0]:loyaltyResult.data; if(!loyaltyResult.error && row) setLoyalty(row as LoyaltySummary); if(!couponResult.error) setCoupons((couponResult.data??[]) as Coupon[]); });\n    return ()=>{active=false;};\n  },[customerId,supabase]);\n\n  async function requestService(type:"water"|"napkins"|"cutlery"|"waiter") {\n    if(!sessionId || serviceBusy || !online) return; setServiceBusy(true);\n    const {error}=await supabase.rpc("create_service_request",{p_session_id:sessionId,p_request_type:type,p_note:null});\n    setServiceBusy(false); setMessage(error?.message ?? "تم إرسال طلب الخدمة إلى النادل.");\n  }\n\n  function stopQrScanner() {
     if (scannerFrameRef.current !== null) window.cancelAnimationFrame(scannerFrameRef.current);
     scannerFrameRef.current = null;
     cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
@@ -275,8 +283,12 @@ export function CustomerOrder({ qr }: { qr: string }) {
   useEffect(() => {
     const savedPhone = window.sessionStorage.getItem("customer-visit-phone");
     const savedBirthYear = window.sessionStorage.getItem("customer-visit-birth-year");
+    const savedBirthMonth = window.sessionStorage.getItem("customer-visit-birth-month");
+    const savedBirthDay = window.sessionStorage.getItem("customer-visit-birth-day");
     if (savedPhone) setPhoneInput(savedPhone);
     if (savedBirthYear) setBirthYearInput(savedBirthYear);
+    if (savedBirthMonth) setBirthMonthInput(savedBirthMonth);
+    if (savedBirthDay) setBirthDayInput(savedBirthDay);
     if (savedPhone && savedBirthYear) {
       setPhone(savedPhone);
       setBirthYear(savedBirthYear);
@@ -342,6 +354,12 @@ export function CustomerOrder({ qr }: { qr: string }) {
         throw new Error(reason);
       }
       const profileId = claim.customer_id as string;
+      const savedMonth = window.sessionStorage.getItem("customer-visit-birth-month");
+      const savedDay = window.sessionStorage.getItem("customer-visit-birth-day");
+      if (savedMonth && savedDay) {
+        const { error: birthdayError } = await supabase.rpc("update_customer_birthday", { p_month: Number(savedMonth), p_day: Number(savedDay) });
+        if (birthdayError) throw birthdayError;
+      }
       if (active) setCustomerId(profileId);
 
       const { error: contactError } = await supabase.from("customer_contacts").upsert({
@@ -380,9 +398,9 @@ export function CustomerOrder({ qr }: { qr: string }) {
         supabase.from("categories").select("id,name_ar,name_en,sort_order")
           .eq("is_active", true).order("sort_order"),
         supabase.from("products")
-          .select("id,category_id,name_ar,name_en,description_ar,price,image_path,is_available,is_featured,sort_order,station")
+          .select("id,category_id,name_ar,name_en,description_ar,price,image_path,is_available,is_featured,sort_order,station,meal_period")
           .eq("is_active", true).order("sort_order"),
-        supabase.from("settings").select("restaurant_name_ar,restaurant_name_en,logo_path,phone,address,opening_hours").eq("id", 1).maybeSingle(),
+        supabase.from("settings").select("restaurant_name_ar,restaurant_name_en,logo_path,phone,address,opening_hours,timezone,meal_period_hours").eq("id", 1).maybeSingle(),
       ]);
       if (categoryResult.error) throw categoryResult.error;
       if (productResult.error) throw productResult.error;
@@ -405,6 +423,8 @@ export function CustomerOrder({ qr }: { qr: string }) {
           setCustomerId(null);
           window.sessionStorage.removeItem("customer-visit-phone");
           window.sessionStorage.removeItem("customer-visit-birth-year");
+    window.sessionStorage.removeItem("customer-visit-birth-month");
+    window.sessionStorage.removeItem("customer-visit-birth-day");
         }
       }
     }).finally(() => {
@@ -587,7 +607,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
     const matchesSearch = !search.trim() ||
       product.name_ar.toLowerCase().includes(search.trim().toLowerCase()) ||
       (product.name_en ?? "").toLowerCase().includes(search.trim().toLowerCase());
-    return matchesCategory && matchesSearch;
+    return matchesMeal && matchesCategory && matchesSearch;
   });
 
   const cartCount = Object.values(cart).reduce((sum, item) => sum + item.quantity, 0);
@@ -688,6 +708,12 @@ export function CustomerOrder({ qr }: { qr: string }) {
     const normalizedYear = String(hijriYear);
     window.sessionStorage.setItem("customer-visit-phone", normalized);
     window.sessionStorage.setItem("customer-visit-birth-year", normalizedYear);
+    const month = Number(birthMonthInput), day = Number(birthDayInput);
+    if (birthMonthInput || birthDayInput) {
+      if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(day) || day < 1 || day > 30) { setMessage("أدخل اليوم والشهر الهجريين بشكل صحيح، أو اتركهما فارغين."); return; }
+      window.sessionStorage.setItem("customer-visit-birth-month", String(month));
+      window.sessionStorage.setItem("customer-visit-birth-day", String(day));
+    } else { window.sessionStorage.removeItem("customer-visit-birth-month"); window.sessionStorage.removeItem("customer-visit-birth-day"); }
     setPhone(normalized);
     setPhoneInput(normalized);
     setBirthYear(normalizedYear);
@@ -785,10 +811,11 @@ export function CustomerOrder({ qr }: { qr: string }) {
           <input id="customer-phone" inputMode="tel" autoComplete="tel" dir="ltr" placeholder="05XXXXXXXX" value={phoneInput} onChange={(event) => setPhoneInput(event.target.value)} maxLength={16}/>
           <label htmlFor="customer-hijri-year">سنة الميلاد بالهجري</label>
           <input id="customer-hijri-year" inputMode="numeric" type="number" min="1300" max="1500" placeholder="مثال: 1410" value={birthYearInput} onChange={(event) => setBirthYearInput(event.target.value)} />
+          <div className="admin-form-grid"><label>شهر الميلاد الهجري (اختياري)<select value={birthMonthInput} onChange={e=>setBirthMonthInput(e.target.value)}><option value="">اختر الشهر</option>{Array.from({length:12},(_,i)=><option key={i+1} value={i+1}>{["محرم","صفر","ربيع الأول","ربيع الآخر","جمادى الأولى","جمادى الآخرة","رجب","شعبان","رمضان","شوال","ذو القعدة","ذو الحجة"][i]}</option>)}</select></label><label>يوم الميلاد الهجري (اختياري)<input type="number" min="1" max="30" value={birthDayInput} onChange={e=>setBirthDayInput(e.target.value)} placeholder="1 - 30"/></label></div>
           {message && <p className="customer-onboarding-error" role="alert">{message}</p>}
           <button className="action-button" type="submit">متابعة إلى القائمة <ArrowLeft size={17}/></button>
         </form>
-        <small className="customer-privacy-note"><ShieldCheck size={15}/> لا نرسل رسائل نصية. نستخدم سنة الميلاد للتحقق الإضافي، وتبقى فواتيرك وطلباتك مرتبطة بملفك لا بالطاولة.</small>
+        <small className="customer-privacy-note"><ShieldCheck size={15}/> لا نرسل رسائل نصية. تاريخ الميلاد الهجري الإضافي اختياري ويستخدم لتقديم مكافأة في يوم ميلادك.</small>
       </main>
     );
   }
@@ -912,7 +939,7 @@ export function CustomerOrder({ qr }: { qr: string }) {
       </section>
 
       {message && <p className="feedback" role="status">{message}</p>}
-      {!online && <p className="offline-banner" role="status">لا يوجد اتصال، تظهر آخر حالة محفوظة وسيعاد الاتصال تلقائياً.</p>}
+      {!online && <p className="offline-banner" role="status">لا يوجد اتصال، تظهر آخر حالة محفوظة وسيعاد الاتصال تلقائياً.</p>}\n      <section className="customer-service-panel" aria-label="طلبات الخدمة"><strong>تحتاج شيئاً على الطاولة؟</strong><div><button type="button" disabled={serviceBusy || !online} onClick={()=>void requestService("water")}>💧 ماء</button><button type="button" disabled={serviceBusy || !online} onClick={()=>void requestService("napkins")}>مناديل</button><button type="button" disabled={serviceBusy || !online} onClick={()=>void requestService("cutlery")}>أدوات طعام</button><button type="button" disabled={serviceBusy || !online} onClick={()=>void requestService("waiter")}>🔔 نادِل</button></div></section>\n      {coupons.length>0 && <section className="customer-coupons"><strong>عروض وكوبونات متاحة</strong>{coupons.map(c=><span key={c.id}>{c.title} · <b>{c.code}</b> · {c.discount_percent ? c.discount_percent+"%" : c.discount_amount+" ر.س"}</span>)}</section>}
 
       {sessionStatus === "closed" ? (
         <section className="thanks-panel">
