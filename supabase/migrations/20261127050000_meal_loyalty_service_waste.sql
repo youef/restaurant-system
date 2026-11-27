@@ -124,3 +124,49 @@ language sql stable security definer set search_path=pg_catalog,public,private a
 $$;
 revoke all on function public.get_my_loyalty_summary() from public,anon;
 grant execute on function public.get_my_loyalty_summary() to authenticated;
+
+
+alter table public.settings add column if not exists birthday_discount_percent numeric(5,2) not null default 15 check (birthday_discount_percent between 0.01 and 100);
+alter table public.coupons add column if not exists customer_id uuid references public.customer_profiles(id) on delete cascade;
+create table if not exists public.birthday_coupon_claims (
+ customer_id uuid not null references public.customer_profiles(id) on delete cascade,
+ hijri_year integer not null check(hijri_year between 1300 and 1600),
+ coupon_id uuid not null unique references public.coupons(id) on delete cascade,
+ created_at timestamptz not null default now(),
+ primary key(customer_id,hijri_year)
+);
+alter table public.birthday_coupon_claims enable row level security;
+revoke all on public.birthday_coupon_claims from public,anon,authenticated;
+drop policy if exists coupons_read_active on public.coupons;
+create policy coupons_read_active on public.coupons for select to authenticated
+using (
+ (is_active and starts_at<=now() and (expires_at is null or expires_at>=now())
+  and (customer_id is null or exists(select 1 from public.customer_profiles cp where cp.id=customer_id and cp.auth_user_id=auth.uid())))
+ or (select private.current_app_role())='admin'
+);
+create or replace function public.claim_birthday_coupon(p_hijri_year integer,p_month integer,p_day integer)
+returns table(coupon_code text, already_claimed boolean)
+language plpgsql security definer set search_path=pg_catalog,public,private as $$
+declare v_customer_id uuid; v_birth_month smallint; v_birth_day smallint; v_code text; v_coupon_id uuid; v_existing text;
+begin
+ if auth.uid() is null then raise exception 'يلزم تسجيل الدخول'; end if;
+ select id,birth_month_hijri,birth_day_hijri into v_customer_id,v_birth_month,v_birth_day
+ from public.customer_profiles where auth_user_id=auth.uid();
+ if v_customer_id is null or v_birth_month is null or v_birth_day is null then
+  raise exception 'أكمل تاريخ الميلاد الهجري في ملفك أولاً';
+ end if;
+ if p_month<>v_birth_month or p_day<>v_birth_day or p_month not between 1 and 12 or p_day not between 1 and 30 or p_hijri_year not between 1300 and 1600 then
+  raise exception 'تاريخ الميلاد لا يطابق الملف';
+ end if;
+ select c.code into v_existing from public.birthday_coupon_claims b join public.coupons c on c.id=b.coupon_id
+ where b.customer_id=v_customer_id and b.hijri_year=p_hijri_year;
+ if v_existing is not null then return query select v_existing,true; return; end if;
+ v_code := 'BDAY-' || upper(substr(replace(gen_random_uuid()::text,'-',''),1,10));
+ insert into public.coupons(customer_id,code,title,description,discount_percent,starts_at,expires_at,is_active)
+ select v_customer_id,v_code,'هدية عيد ميلادك','كوبون عيد ميلاد هجري صالح لمدة 3 أيام',birthday_discount_percent,now(),now()+interval '3 days',true
+ from public.settings where id=1 returning id into v_coupon_id;
+ insert into public.birthday_coupon_claims(customer_id,hijri_year,coupon_id) values(v_customer_id,p_hijri_year,v_coupon_id);
+ return query select v_code,false;
+end $$;
+revoke all on function public.claim_birthday_coupon(integer,integer,integer) from public,anon;
+grant execute on function public.claim_birthday_coupon(integer,integer,integer) to authenticated;
