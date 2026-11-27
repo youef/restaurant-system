@@ -132,7 +132,7 @@ begin
   v_discount:=least(v_base.subtotal,coalesce(v_base.subtotal*v_coupon.discount_percent/100,v_coupon.discount_amount,0));
  end if;
  select vat_rate into v_vat_rate from public.settings where id=1;
- subtotal:=v_base.subtotal-v_discount; vat_amount:=round(subtotal*v_vat_rate,2); total:=subtotal+vat_amount; discount_amount:=v_discount;
+ subtotal:=v_base.subtotal; vat_amount:=round((subtotal-v_discount)*v_vat_rate,2); total:=subtotal-v_discount+vat_amount; discount_amount:=v_discount;
  return next;
 end $$;
 revoke all on function private.preview_order_with_coupon(uuid,jsonb,text) from public,anon,authenticated;
@@ -160,9 +160,9 @@ begin
   v_discount:=least(v_order.subtotal,coalesce(v_order.subtotal*v_coupon.discount_percent/100,v_coupon.discount_amount,0));
   select vat_rate into v_vat_rate from public.settings where id=1;
   v_new_subtotal:=v_order.subtotal-v_discount; v_new_vat:=round(v_new_subtotal*v_vat_rate,2); v_new_total:=v_new_subtotal+v_new_vat;
-  update public.orders set subtotal=v_new_subtotal,vat_amount=v_new_vat,total=v_new_total,discount_amount=v_discount,coupon_code=upper(trim(p_coupon_code)) where id=v_order.order_id;
+  update public.orders set vat_amount=v_new_vat,total=v_new_total,discount_amount=v_discount,coupon_code=upper(trim(p_coupon_code)) where id=v_order.order_id;
   insert into private.customer_coupon_redemptions(coupon_id,customer_id,order_id) values(v_coupon.id,v_customer_id,v_order.order_id);
-  v_order.subtotal:=v_new_subtotal; v_order.vat_amount:=v_new_vat; v_order.total:=v_new_total;
+  v_order.vat_amount:=v_new_vat; v_order.total:=v_new_total;
  end if;
  return query select v_order.order_id,v_order.order_no,v_order.subtotal,v_order.vat_amount,v_order.total,v_discount;
 end $$;
