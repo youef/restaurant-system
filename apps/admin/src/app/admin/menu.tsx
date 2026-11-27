@@ -51,7 +51,7 @@ export function MenuManager() {
     const db = getSupabaseBrowserClient();
     const [cat, prod] = await Promise.all([
       db.from("categories").select("id,name_ar,name_en,sort_order,is_active").order("sort_order"),
-      db.from("products").select("id,category_id,name_ar,name_en,description_ar,description_en,price,image_path,station,is_available,is_active,is_featured,sort_order").order("sort_order"),
+      db.from("products").select("id,category_id,name_ar,name_en,description_ar,description_en,price,image_path,station,is_available,is_active,is_featured,sort_order,meal_period").order("sort_order"),
     ]);
     if (cat.error) setMessage(cat.error.message); else setCategories((cat.data ?? []) as Category[]);
     if (prod.error) setMessage(prod.error.message); else setProducts((prod.data ?? []) as Product[]);
