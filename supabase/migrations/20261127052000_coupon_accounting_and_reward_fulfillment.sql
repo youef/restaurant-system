@@ -50,17 +50,3 @@ drop function if exists private.list_pending_loyalty_redemptions();
 drop function if exists public.fulfill_loyalty_redemption(uuid);
 drop function if exists private.fulfill_loyalty_redemption(uuid);
 drop table if exists private.customer_loyalty_redemptions cascade;
-
--- Let returning customers reuse the Hijri birthday stored on their own profile.
-create or replace function private.get_my_customer_birthday()
-returns table(birth_month_hijri smallint,birth_day_hijri smallint)
-language sql stable security definer set search_path=pg_catalog,public,private as $$
- select cp.birth_month_hijri,cp.birth_day_hijri from public.customer_profiles cp where cp.auth_user_id=auth.uid()
-$$;
-revoke all on function private.get_my_customer_birthday() from public,anon,authenticated;
-grant execute on function private.get_my_customer_birthday() to authenticated;
-create or replace function public.get_my_customer_birthday()
-returns table(birth_month_hijri smallint,birth_day_hijri smallint)
-language sql stable security invoker set search_path=pg_catalog,public,private as $$ select * from private.get_my_customer_birthday() $$;
-revoke all on function public.get_my_customer_birthday() from public,anon;
-grant execute on function public.get_my_customer_birthday() to authenticated;
