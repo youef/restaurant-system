@@ -273,3 +273,17 @@ returns table(birth_month_hijri smallint,birth_day_hijri smallint)
 language sql stable security invoker set search_path=pg_catalog,public,private as $$ select * from private.get_my_birthday() $$;
 revoke all on function public.get_my_birthday() from public,anon;
 grant execute on function public.get_my_birthday() to authenticated;
+
+
+create or replace function private.release_coupon_reservation_on_reject()
+returns trigger language plpgsql security definer set search_path=pg_catalog,public,private as $$
+begin
+ if new.status='rejected' and old.status is distinct from 'rejected' then
+  delete from private.customer_coupon_redemptions where order_id=new.id;
+ end if;
+ return new;
+end $$;
+revoke all on function private.release_coupon_reservation_on_reject() from public,anon,authenticated;
+drop trigger if exists release_coupon_reservation_on_reject on public.orders;
+create trigger release_coupon_reservation_on_reject after update of status on public.orders
+for each row execute function private.release_coupon_reservation_on_reject();
